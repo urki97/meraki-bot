@@ -47,25 +47,36 @@ imagen:
   # Directorio de fotos reales del bar (si existen, se usan en lugar de SDXL)
   fotos_reales_dir: "assets/fotos_reales"
 
+# ── Horario de apertura ───────────────────────────────────────────────────────
+# El bot respeta este horario y no publica en días de cierre
+apertura:
+  dias_abierto: [miercoles, jueves, viernes, sabado, domingo]
+  dias_cerrado: [lunes, martes]
+  nota: "lunes y martes cerrado — no publicar"
+
+# ── Publicación semanal rotatoria de eventos fijos ────────────────────────────
+# En lugar de publicar todos los días de apertura, se publica UN evento fijo
+# por semana rotando entre miércoles, jueves y viernes.
+# Sábado y domingo se publican siempre (son los días de mayor tráfico).
+publicacion_rotatoria:
+  activa: true
+  eventos_rotativos: [miercoles, jueves, viernes]  # rota en este orden semana a semana
+  siempre_publicar: [sabado, domingo]              # estos se publican cada semana
+  # La semana de rotación se determina por número de semana del año (% 3)
+  # Semana %3 == 0 → miércoles, %3 == 1 → jueves, %3 == 2 → viernes
+
 # ── Temáticas por día de la semana ───────────────────────────────────────────
 dias:
   lunes:
-    tema: "inicio de semana"
-    enfoque: "cócteles de temporada, arrancar la semana con energía"
-    hashtag_variable: "#CoctelesDeTemporada"
-    prompt_imagen_extra: >
-      tall cocktail glass with seasonal fruit garnish, mint, close-up on dark bar counter,
-      warm amber neon light, red bar background, bokeh bottles
+    publicar: false
+    motivo: "cerrado los lunes"
 
   martes:
-    tema: "novedades y promociones"
-    enfoque: "novedades del bar, nuevas incorporaciones a la carta"
-    hashtag_variable: "#NuevoEnMeraki"
-    prompt_imagen_extra: >
-      new cocktail presentation on dark wood bar, colorful drink with elaborate garnish,
-      red neon glow, bar shelves in background, moody lighting
+    publicar: false
+    motivo: "cerrado los martes"
 
   miercoles:
+    publicar: true  # rotatorio — no siempre
     tema: "Miércoles de mojitos"
     enfoque: "promoción fija e inamovible — mojitos a precio especial"
     hashtag_variable: "#MiercolesDelMojito"
@@ -75,6 +86,7 @@ dias:
     promocion_fija: true
 
   jueves:
+    publicar: true  # rotatorio — no siempre
     tema: "pintxopote"
     enfoque: "pintxo + zurito a precio especial — tradición vasca"
     hashtag_variable: "#Pintxopote"
@@ -83,6 +95,7 @@ dias:
       warm cozy bar atmosphere, wooden counter, soft amber light
 
   viernes:
+    publicar: true  # rotatorio — no siempre
     tema: "tortillas especiales"
     enfoque: "tortillas especiales del día — plato estrella del viernes"
     hashtag_variable: "#TortillaDelDia"
@@ -91,6 +104,7 @@ dias:
       bar counter setting, cozy restaurant atmosphere, close-up food photography
 
   sabado:
+    publicar: true  # siempre
     tema: "noche de cócteles"
     enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
     hashtag_variable: "#CoctelesDeAutor"
@@ -99,6 +113,7 @@ dias:
       elaborate garnish, dark wood bar counter, bokeh bottle wall, dramatic lighting
 
   domingo:
+    publicar: true  # siempre
     tema: "vermú dominical"
     enfoque: "vermú, cierre de semana, relax y buena compañía"
     hashtag_variable: "#VermuDominical"

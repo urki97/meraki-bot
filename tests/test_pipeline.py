@@ -77,30 +77,33 @@ class TestPlanner(unittest.TestCase):
         self.assertEqual(len(plan), 7, f"Se esperaban 7 días, se obtuvieron {len(plan)}")
 
     def test_estructura_de_cada_dia(self):
-        """Cada día del plan debe tener los campos obligatorios."""
-        campos_requeridos = {
-            "fecha", "dia_semana", "tema", "enfoque",
-            "idea_creativa", "hashtag_variable", "estado",
-            "intentos_regeneracion",
-        }
+        """Cada día del plan debe tener fecha, dia_semana y estado. Los días
+        publicables además requieren tema, enfoque, idea_creativa y hashtag."""
+        campos_minimos = {"fecha", "dia_semana", "estado"}
+        campos_publicables = {"tema", "enfoque", "idea_creativa", "hashtag_variable", "intentos_regeneracion"}
         with patch("ollama.generate") as mock_ollama:
             mock_ollama.return_value = {"response": "Idea de prueba"}
             from agents.planner import generar_plan_semanal
             plan = generar_plan_semanal(forzar=True)
 
         for fecha, dia in plan.items():
-            faltantes = campos_requeridos - set(dia.keys())
-            self.assertFalse(faltantes, f"{fecha}: campos faltantes {faltantes}")
+            faltantes_min = campos_minimos - set(dia.keys())
+            self.assertFalse(faltantes_min, f"{fecha}: campos mínimos faltantes {faltantes_min}")
+            if dia["estado"] != "no_publicar":
+                faltantes_pub = campos_publicables - set(dia.keys())
+                self.assertFalse(faltantes_pub, f"{fecha}: campos de publicación faltantes {faltantes_pub}")
 
     def test_estados_iniciales_pendiente(self):
-        """Todos los días deben empezar en estado 'pendiente'."""
+        """Los días publicables deben empezar en 'pendiente'. Los cerrados en 'no_publicar'."""
         with patch("ollama.generate") as mock_ollama:
             mock_ollama.return_value = {"response": "Idea de prueba"}
             from agents.planner import generar_plan_semanal
             plan = generar_plan_semanal(forzar=True)
 
+        estados_validos = {"pendiente", "no_publicar"}
         for fecha, dia in plan.items():
-            self.assertEqual(dia["estado"], "pendiente", f"{fecha} no está en estado pendiente")
+            self.assertIn(dia["estado"], estados_validos,
+                          f"{fecha} tiene estado inesperado: {dia['estado']}")
 
     def test_plan_se_persiste_en_disco(self):
         """El plan generado debe persistirse en state/weekly_plan.json."""
@@ -316,8 +319,10 @@ class TestPipelineIntegrado(unittest.TestCase):
             plan = generar_plan_semanal(forzar=True)
             self.assertEqual(len(plan), 7)
 
-            # Tomar un día del plan y completar el pipeline
-            fecha, dia = next(iter(plan.items()))
+            # Tomar el primer día publicable del plan
+            fecha, dia = next(
+                (f, d) for f, d in plan.items() if d.get("estado") == "pendiente"
+            )
 
             mock_ollama.return_value = {"response": respuesta_copy}
             from agents.copy_agent import generar_caption
