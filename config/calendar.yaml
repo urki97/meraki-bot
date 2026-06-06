@@ -1,0 +1,75 @@
+# Calendario de eventos fijos y recurrentes de Meraki Bar & Cocktails
+# El planner consulta este fichero para enriquecer el contenido del día
+
+# ── Eventos semanales recurrentes (inamovibles) ───────────────────────────────
+recurrentes:
+  - nombre: "Miércoles de mojitos"
+    dia_semana: miercoles
+    descripcion: "Mojitos a precio especial todos los miércoles"
+    prioridad: alta
+
+  - nombre: "Pintxopote del jueves"
+    dia_semana: jueves
+    descripcion: "Pintxo + zurito a precio especial, tradición vasca"
+    prioridad: alta
+
+  - nombre: "Tortillas especiales"
+    dia_semana: viernes
+    descripcion: "Tortilla especial del día, cambia cada semana"
+    prioridad: media
+
+  - nombre: "Vermú dominical"
+    dia_semana: domingo
+    descripcion: "Vermú y aperitivo para cerrar el fin de semana"
+    prioridad: media
+
+# ── Eventos especiales del año (fechas aproximadas) ──────────────────────────
+# Nota: confirmar fechas exactas con el bar antes de publicar
+especiales:
+  - nombre: "Semana Grande de Bilbao"
+    mes: 8
+    semana_aprox: 3
+    descripcion: "Aste Nagusia — fiestas patronales de Bilbao"
+    tono_especial: "festivo, bilbaíno, orgulloso"
+
+  - nombre: "San Valentín"
+    mes: 2
+    dia: 14
+    descripcion: "Día de los enamorados — cócteles especiales"
+    tono_especial: "romántico pero sin exceso"
+
+  - nombre: "Nochevieja"
+    mes: 12
+    dia: 31
+    descripcion: "Cierre de año — brindis especial"
+    tono_especial: "celebración, retrospectiva, brindis"
+
+  - nombre: "Año Nuevo"
+    mes: 1
+    dia: 1
+    descripcion: "Arranque del año nuevo"
+    tono_especial: "positivo, nuevos comienzos"
+
+  - nombre: "Carnaval"
+    mes: 2
+    semana_aprox: 2
+    descripcion: "Carnavales — ambiente festivo"
+    tono_especial: "divertido, colorido"
+
+# ── Temporadas ────────────────────────────────────────────────────────────────
+temporadas:
+  - nombre: "Primavera"
+    meses: [3, 4, 5]
+    cocteles_sugeridos: ["Aperol Spritz", "gin tonic con flores", "mojito de frutos rojos"]
+
+  - nombre: "Verano"
+    meses: [6, 7, 8]
+    cocteles_sugeridos: ["mojito clásico", "daiquiri de mango", "piña colada"]
+
+  - nombre: "Otoño"
+    meses: [9, 10, 11]
+    cocteles_sugeridos: ["Old Fashioned", "Negroni", "whisky sour"]
+
+  - nombre: "Invierno"
+    meses: [12, 1, 2]
+    cocteles_sugeridos: ["café irlandés", "hot toddy", "Espresso Martini"]

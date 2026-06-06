@@ -1,0 +1,87 @@
+# Pautas de contenido para Meraki Bar & Cocktails
+# Estas pautas guían al planner y al copy agent
+
+bar:
+  nombre: "Meraki Bar & Cocktails"
+  slogan: "Hacer algo con amor y creatividad poniendo el alma en ello"
+  instagram: "@merakibilbao"
+  direccion: "Calle Santo Rosario 1, Santutxu, Bilbao"
+  especialidad: "cócteles de autor y pintxos"
+  ambiente: "moderno, cercano, bilbaíno"
+  seguidores: 458  # cuenta pequeña — tono cercano, no corporativo
+  terraza: false
+
+tono:
+  idioma: español
+  estilo: cercano y bilbaíno
+  evitar:
+    - lenguaje corporativo
+    - frases hechas y clichés
+    - exceso de emojis
+    - inventar eventos o precios no confirmados
+    - anglicismos innecesarios
+  usar:
+    - vocabulario cotidiano del País Vasco
+    - referencias locales reales (Santutxu, Bilbao)
+    - segunda persona del singular (tú)
+    - frases cortas y directas
+
+hashtags:
+  fijos:
+    - "#MerakiBilbao"
+    - "#Santutxu"
+  maximo_por_post: 3  # fijos + 1 variable
+  nota: "naturales, no spam — integrados o al final del caption"
+
+imagen:
+  estilo_prompt_base: >
+    dark atmospheric cocktail bar, warm amber lighting, moody editorial style,
+    bokeh background, no text, no people, cinematic, high quality
+  overlay_alpha: 0.45  # oscuridad del overlay sobre la imagen
+  texto_color: "white"
+  resolucion: [1080, 1920]  # story Instagram
+
+# ── Temáticas por día de la semana ───────────────────────────────────────────
+dias:
+  lunes:
+    tema: "inicio de semana"
+    enfoque: "cócteles de temporada, arrancar la semana con energía"
+    hashtag_variable: "#CoctelesDeTemporada"
+    prompt_imagen_extra: "seasonal cocktail, colorful garnish, close-up shot"
+
+  martes:
+    tema: "novedades y promociones"
+    enfoque: "novedades del bar, nuevas incorporaciones a la carta"
+    hashtag_variable: "#NuevoEnMeraki"
+    prompt_imagen_extra: "cocktail menu, elegant presentation, dark wood bar"
+
+  miercoles:
+    tema: "Miércoles de mojitos"
+    enfoque: "promoción fija e inamovible — mojitos a precio especial"
+    hashtag_variable: "#MiercolesDelMojito"
+    prompt_imagen_extra: "mojito cocktail, mint leaves, lime, crushed ice, backlit"
+    promocion_fija: true
+
+  jueves:
+    tema: "pintxopote"
+    enfoque: "pintxo + zurito a precio especial — tradición vasca"
+    hashtag_variable: "#Pintxopote"
+    prompt_imagen_extra: "pintxos on bar counter, traditional basque food, warm light"
+
+  viernes:
+    tema: "tortillas especiales"
+    enfoque: "tortillas especiales del día — plato estrella del viernes"
+    hashtag_variable: "#TortillaDelDia"
+    prompt_imagen_extra: "spanish omelette, rustic plate, warm kitchen light"
+
+  sabado:
+    tema: "noche de cócteles"
+    enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
+    hashtag_variable: "#CoctelesDeAutor"
+    prompt_imagen_extra: "night bar atmosphere, signature cocktail, dim lights, elegant"
+
+  domingo:
+    tema: "vermú dominical"
+    enfoque: "vermú, cierre de semana, relax y buena compañía"
+    hashtag_variable: "#VermuDominical"
+    prompt_imagen_extra: "vermouth glass, sunday brunch vibes, soft warm light, olives"
