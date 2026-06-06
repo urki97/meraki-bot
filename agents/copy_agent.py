@@ -101,6 +101,29 @@ def _parsear_respuesta(respuesta: str) -> dict:
     raise ValueError(f"No se pudo parsear la respuesta de Ollama:\n{respuesta[:300]}")
 
 
+def _acortar_para_twitter(caption: str, hashtags: list[str]) -> str:
+    """
+    Ajusta el caption a ≤280 caracteres para Twitter/X.
+    Trunca el texto preservando el sentido y añade los hashtags al final.
+    """
+    hashtags_str = " ".join(hashtags)
+    limite = 280 - len(hashtags_str) - 2  # 2 = salto de línea
+
+    if len(caption) <= limite:
+        return f"{caption}\n{hashtags_str}"
+
+    # Truncar por palabra completa
+    palabras = caption.split()
+    texto = ""
+    for palabra in palabras:
+        candidato = f"{texto} {palabra}".strip()
+        if len(candidato) + 3 > limite:   # +3 para "..."
+            break
+        texto = candidato
+
+    return f"{texto}...\n{hashtags_str}"
+
+
 def generar_caption(
     dia: dict,
     modelo: str = "llama3.1:8b",
@@ -140,6 +163,11 @@ def generar_caption(
 
             # Limitar a 3 hashtags máximo
             resultado["hashtags"] = resultado["hashtags"][:3]
+
+            # Generar versión corta para Twitter (≤280 chars con hashtags)
+            resultado["caption_twitter"] = _acortar_para_twitter(
+                resultado["caption"], resultado["hashtags"]
+            )
 
             logger.info(f"Caption OK: {resultado['caption'][:60]}...")
             return resultado

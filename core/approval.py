@@ -1,9 +1,11 @@
 """
 Approval: bot de Telegram para aprobación de publicaciones.
 Flujo:
-  1. Envía preview (imagen + caption) con botones ✅ Publicar / ❌ Regenerar
-  2. Si ✅ → publica inmediatamente
-  3. Si ❌ → regenera (máx MAX_REGENERATIONS veces), vuelve a enviar preview
+  1. Envía preview (imagen + caption) con botones:
+       ✅ Publicar / ❌ Regenerar
+       Toggles por red: [IG ✅] [FB ✅] [TW ❌]
+  2. Si ✅ → publica en las redes activadas
+  3. Si ❌ → regenera (máx MAX_REGENERATIONS veces)
   4. Sin respuesta en APPROVAL_WINDOW_HOURS → publica automáticamente
   5. Si agota regeneraciones → notifica y descarta el día
 """
@@ -31,9 +33,21 @@ logger = logging.getLogger("approval")
 
 STATE_FILE = BASE_DIR / "state" / "weekly_plan.json"
 
-# Tokens de callback para los botones inline
-CB_PUBLICAR = "publicar"
+# Tokens de callback
+CB_PUBLICAR  = "publicar"
 CB_REGENERAR = "regenerar"
+CB_TOGGLE    = "toggle"   # toggle:{fecha}:{red}
+
+# Estado de redes por post (se inicializa desde .env, se puede cambiar por post)
+def _estado_redes_inicial() -> dict:
+    return {
+        "instagram": os.getenv("PUBLISH_INSTAGRAM", "true").lower() in ("true","1"),
+        "facebook":  os.getenv("PUBLISH_FACEBOOK", "true").lower()  in ("true","1"),
+        "twitter":   os.getenv("PUBLISH_TWITTER", "false").lower()  in ("true","1"),
+    }
+
+# Cache en memoria de los toggles por fecha (se resetea al reiniciar)
+_toggles: dict[str, dict] = {}
 
 
 def _cargar_plan() -> dict:
@@ -47,12 +61,25 @@ def _guardar_plan(plan: dict) -> None:
 
 
 def _teclado_aprobacion(fecha: str) -> InlineKeyboardMarkup:
-    """Genera los botones inline de aprobación."""
+    """Genera los botones inline con toggles de redes y acciones."""
+    redes = _toggles.get(fecha, _estado_redes_inicial())
+    _toggles[fecha] = redes   # guardar estado
+
+    def _icono(activa: bool) -> str:
+        return "✅" if activa else "❌"
+
     return InlineKeyboardMarkup([
+        # Fila 1: toggles por red
         [
-            InlineKeyboardButton("✅ Publicar", callback_data=f"{CB_PUBLICAR}:{fecha}"),
-            InlineKeyboardButton("❌ Regenerar", callback_data=f"{CB_REGENERAR}:{fecha}"),
-        ]
+            InlineKeyboardButton(f"IG {_icono(redes['instagram'])}", callback_data=f"{CB_TOGGLE}:{fecha}:instagram"),
+            InlineKeyboardButton(f"FB {_icono(redes['facebook'])}",  callback_data=f"{CB_TOGGLE}:{fecha}:facebook"),
+            InlineKeyboardButton(f"TW {_icono(redes['twitter'])}",   callback_data=f"{CB_TOGGLE}:{fecha}:twitter"),
+        ],
+        # Fila 2: publicar / regenerar
+        [
+            InlineKeyboardButton("🚀 Publicar",   callback_data=f"{CB_PUBLICAR}:{fecha}"),
+            InlineKeyboardButton("🔄 Regenerar", callback_data=f"{CB_REGENERAR}:{fecha}"),
+        ],
     ])
 
 
@@ -155,23 +182,41 @@ async def _esperar_respuesta(
             query = update.callback_query
             await query.answer()
 
-            if not query.data or not (
-                query.data.startswith(CB_PUBLICAR) or query.data.startswith(CB_REGENERAR)
-            ):
+            if not query.data:
                 continue
 
-            accion, fecha_cb = query.data.split(":", 1)
+            partes = query.data.split(":")
+            accion = partes[0]
+            fecha_cb = partes[1] if len(partes) > 1 else ""
+
             if fecha_cb != fecha:
                 continue  # callback de otro día
+
+            # Toggle de red
+            if accion == CB_TOGGLE and len(partes) == 3:
+                red = partes[2]
+                redes = _toggles.get(fecha, _estado_redes_inicial())
+                redes[red] = not redes[red]
+                _toggles[fecha] = redes
+                logger.info(f"Toggle {red}: {redes[red]} para {fecha}")
+                await query.edit_message_reply_markup(reply_markup=_teclado_aprobacion(fecha))
+                continue
+
+            if accion not in (CB_PUBLICAR, CB_REGENERAR):
+                continue
 
             plan = _cargar_plan()
             dia_actual = plan.get(fecha, dia)
 
             if accion == CB_PUBLICAR:
-                logger.info(f"✅ Aprobado por el usuario: {fecha}")
+                redes_post = _toggles.get(fecha, _estado_redes_inicial())
+                redes_activas_txt = ", ".join(r for r, v in redes_post.items() if v) or "ninguna"
+                logger.info(f"✅ Aprobado — publicando en: {redes_activas_txt}")
                 await query.edit_message_caption(
-                    caption=f"✅ Publicando {dia_actual['dia_semana'].upper()} {fecha}...",
+                    caption=f"🚀 Publicando en {redes_activas_txt}...",
                 )
+                # Inyectar toggles en el día para que publisher los use
+                dia_actual["_redes_override"] = redes_post
                 try:
                     publicar_story(dia_actual)
                     plan[fecha]["estado"] = "publicado"

@@ -1,11 +1,18 @@
 """
-Publisher: publica la story en Instagram via Meta Graph API.
-Con DRY_RUN=true simula la publicación sin llamadas reales.
-Cuando lleguen las credenciales, basta con poner DRY_RUN=false en .env.
+Publisher: publica en Instagram, Facebook y Twitter/X.
+Cada red se activa/desactiva con flags en .env.
+Con DRY_RUN=true simula todo sin llamadas reales.
 
-Flujo de publicación en Instagram (2 pasos obligatorios):
-  1. POST /media          → sube la imagen y crea un container
-  2. POST /media_publish  → publica el container creado
+Flujo Instagram (Meta Graph API, 2 pasos):
+  1. POST /{ig_user_id}/media        → crea container
+  2. POST /{ig_user_id}/media_publish → publica
+
+Flujo Facebook (misma Meta API):
+  1. POST /{page_id}/photos           → sube y publica directo
+
+Flujo Twitter/X (API v2 con tweepy):
+  1. Subir imagen con media/upload
+  2. Crear tweet con el media_id
 """
 
 import logging
@@ -22,186 +29,233 @@ load_dotenv(BASE_DIR / ".env")
 logger = logging.getLogger("publisher")
 
 META_API_BASE = "https://graph.facebook.com/v19.0"
-
-# Backoff exponencial para reintentos: 1min, 5min, 15min
-BACKOFF_SEGUNDOS = [60, 300, 900]
+BACKOFF = [60, 300, 900]   # segundos entre reintentos
 
 
-def _dry_run_activo() -> bool:
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _dry_run() -> bool:
     return os.getenv("DRY_RUN", "true").lower() in ("true", "1", "yes")
 
+def _activa(red: str) -> bool:
+    return os.getenv(f"PUBLISH_{red.upper()}", "false").lower() in ("true", "1", "yes")
 
-def _credenciales() -> tuple[str, str]:
-    """Devuelve (ig_user_id, access_token). Lanza ValueError si faltan."""
-    ig_user_id = os.getenv("IG_USER_ID", "")
+def _redes_activas() -> list[str]:
+    return [r for r in ["instagram", "facebook", "twitter"] if _activa(r)]
+
+def _con_backoff(fn, nombre: str):
+    """Ejecuta fn con reintentos y backoff exponencial."""
+    ultimo_error = None
+    for intento, espera in enumerate(BACKOFF, start=1):
+        try:
+            return fn()
+        except requests.HTTPError as e:
+            ultimo_error = e
+            logger.error(f"[{nombre}] HTTP {e.response.status_code if e.response else '?'} intento {intento}: {e}")
+        except Exception as e:
+            ultimo_error = e
+            logger.error(f"[{nombre}] Error intento {intento}: {e}", exc_info=True)
+        if intento < len(BACKOFF):
+            logger.info(f"[{nombre}] Reintentando en {espera}s...")
+            time.sleep(espera)
+    raise RuntimeError(f"[{nombre}] Fallido tras {len(BACKOFF)} intentos: {ultimo_error}")
+
+
+# ── Instagram ─────────────────────────────────────────────────────────────────
+
+def publish_instagram(dia: dict, image_url: str) -> dict:
+    """
+    Publica en Instagram via Meta Graph API (2 pasos).
+    Requiere image_url pública (subir a CDN antes de llamar).
+    """
+    if _dry_run():
+        logger.info("[DRY_RUN][Instagram] Simularía: crear container → publicar")
+        logger.info(f"[DRY_RUN][Instagram] caption: {dia.get('caption','')[:60]}...")
+        return {"red": "instagram", "estado": "simulado", "media_id": "DRY_RUN"}
+
+    ig_user_id  = os.getenv("IG_USER_ID", "")
     access_token = os.getenv("IG_ACCESS_TOKEN", "")
     if not ig_user_id or not access_token:
-        raise ValueError(
-            "Faltan credenciales Meta: IG_USER_ID y/o IG_ACCESS_TOKEN no configurados en .env"
+        raise ValueError("Faltan IG_USER_ID / IG_ACCESS_TOKEN en .env")
+
+    caption_completo = _caption_completo(dia)
+
+    def _publicar():
+        # Paso 1: crear container
+        r = requests.post(
+            f"{META_API_BASE}/{ig_user_id}/media",
+            data={"image_url": image_url, "caption": caption_completo,
+                  "media_type": "IMAGE", "access_token": access_token},
+            timeout=30,
         )
-    return ig_user_id, access_token
+        r.raise_for_status()
+        creation_id = r.json()["id"]
+        logger.info(f"[Instagram] Container creado: {creation_id}")
+        time.sleep(3)
+        # Paso 2: publicar
+        r2 = requests.post(
+            f"{META_API_BASE}/{ig_user_id}/media_publish",
+            data={"creation_id": creation_id, "access_token": access_token},
+            timeout=30,
+        )
+        r2.raise_for_status()
+        media_id = r2.json()["id"]
+        logger.info(f"[Instagram] ✅ Publicado — media_id: {media_id}")
+        return {"red": "instagram", "estado": "publicado", "media_id": media_id}
+
+    return _con_backoff(_publicar, "Instagram")
 
 
-def _subir_imagen_a_cdn(story_path: Path) -> str:
+# ── Facebook ──────────────────────────────────────────────────────────────────
+
+def publish_facebook(dia: dict, image_url: str) -> dict:
     """
-    Meta Graph API requiere que la imagen esté en una URL pública.
-    Por ahora se espera que el caller proporcione una URL o se use
-    un hosting temporal. Este método es un placeholder documentado.
-
-    En producción: subir la imagen a un bucket S3/R2/similar y
-    devolver la URL pública antes de llamar a la API.
+    Publica en Facebook usando la misma Meta API.
+    El access_token debe tener permisos sobre la página.
     """
-    raise NotImplementedError(
-        "Meta Graph API requiere URL pública para la imagen. "
-        "Implementar subida a bucket S3/R2/similar antes de activar DRY_RUN=false."
-    )
+    if _dry_run():
+        logger.info("[DRY_RUN][Facebook] Simularía: POST /{page_id}/photos")
+        return {"red": "facebook", "estado": "simulado", "post_id": "DRY_RUN"}
+
+    page_id      = os.getenv("FACEBOOK_PAGE_ID", "")
+    access_token = os.getenv("IG_ACCESS_TOKEN", "")   # mismo token si la página está vinculada
+    if not page_id or not access_token:
+        raise ValueError("Faltan FACEBOOK_PAGE_ID / IG_ACCESS_TOKEN en .env")
+
+    caption_completo = _caption_completo(dia)
+
+    def _publicar():
+        r = requests.post(
+            f"{META_API_BASE}/{page_id}/photos",
+            data={"url": image_url, "message": caption_completo, "access_token": access_token},
+            timeout=30,
+        )
+        r.raise_for_status()
+        post_id = r.json().get("post_id") or r.json().get("id")
+        logger.info(f"[Facebook] ✅ Publicado — post_id: {post_id}")
+        return {"red": "facebook", "estado": "publicado", "post_id": post_id}
+
+    return _con_backoff(_publicar, "Facebook")
 
 
-def _crear_container_media(
-    ig_user_id: str,
-    access_token: str,
-    image_url: str,
-    caption: str,
-) -> str:
+# ── Twitter / X ───────────────────────────────────────────────────────────────
+
+def publish_twitter(dia: dict, feed_path: Path | str) -> dict:
     """
-    Paso 1: crea el container de media en Instagram.
-    Devuelve el creation_id del container.
+    Publica en Twitter/X usando tweepy v4 (API v2).
+    Usa feed_path (1080×1080) porque las stories no se ven bien en Twitter.
+    El caption es la versión corta ≤280 chars.
     """
-    url = f"{META_API_BASE}/{ig_user_id}/media"
-    payload = {
-        "image_url": image_url,
-        "caption": caption,
-        "media_type": "IMAGE",
-        "access_token": access_token,
-    }
+    if _dry_run():
+        logger.info("[DRY_RUN][Twitter] Simularía: upload media → create tweet")
+        logger.info(f"[DRY_RUN][Twitter] tweet: {dia.get('caption_twitter','')[:60]}...")
+        return {"red": "twitter", "estado": "simulado", "tweet_id": "DRY_RUN"}
 
-    respuesta = requests.post(url, data=payload, timeout=30)
-    respuesta.raise_for_status()
-    datos = respuesta.json()
+    try:
+        import tweepy
+    except ImportError:
+        raise RuntimeError("tweepy no instalado — ejecuta: pip install tweepy")
 
-    if "id" not in datos:
-        raise RuntimeError(f"Meta API no devolvió container id: {datos}")
+    api_key     = os.getenv("TWITTER_API_KEY", "")
+    api_secret  = os.getenv("TWITTER_API_SECRET", "")
+    acc_token   = os.getenv("TWITTER_ACCESS_TOKEN", "")
+    acc_secret  = os.getenv("TWITTER_ACCESS_SECRET", "")
 
-    return datos["id"]
+    if not all([api_key, api_secret, acc_token, acc_secret]):
+        raise ValueError("Faltan credenciales Twitter en .env")
+
+    texto = dia.get("caption_twitter") or _caption_twitter_fallback(dia)
+    feed_path = Path(feed_path)
+
+    def _publicar():
+        # API v1.1 para subir media (v2 no soporta upload directo aún)
+        auth = tweepy.OAuth1UserHandler(api_key, api_secret, acc_token, acc_secret)
+        api_v1 = tweepy.API(auth)
+        media = api_v1.media_upload(str(feed_path))
+        logger.info(f"[Twitter] Media subida: {media.media_id}")
+
+        # API v2 para crear el tweet
+        client = tweepy.Client(
+            consumer_key=api_key, consumer_secret=api_secret,
+            access_token=acc_token, access_token_secret=acc_secret,
+        )
+        tweet = client.create_tweet(text=texto, media_ids=[media.media_id])
+        tweet_id = tweet.data["id"]
+        logger.info(f"[Twitter] ✅ Publicado — tweet_id: {tweet_id}")
+        return {"red": "twitter", "estado": "publicado", "tweet_id": tweet_id}
+
+    return _con_backoff(_publicar, "Twitter")
 
 
-def _publicar_container(
-    ig_user_id: str,
-    access_token: str,
-    creation_id: str,
-) -> str:
-    """
-    Paso 2: publica el container creado.
-    Devuelve el media_id del post publicado.
-    """
-    url = f"{META_API_BASE}/{ig_user_id}/media_publish"
-    payload = {
-        "creation_id": creation_id,
-        "access_token": access_token,
-    }
-
-    respuesta = requests.post(url, data=payload, timeout=30)
-    respuesta.raise_for_status()
-    datos = respuesta.json()
-
-    if "id" not in datos:
-        raise RuntimeError(f"Meta API no devolvió media_id: {datos}")
-
-    return datos["id"]
-
+# ── Publicación coordinada ────────────────────────────────────────────────────
 
 def publicar_story(dia: dict, image_url: str | None = None) -> dict:
     """
-    Publica la story del día en Instagram.
+    Publica en todas las redes activas según los flags del .env.
+    Coordina Instagram, Facebook y Twitter.
 
     Args:
-        dia: entrada del weekly_plan con story_path, caption y hashtags
-        image_url: URL pública de la imagen (requerida cuando DRY_RUN=false)
+        dia:       entrada del weekly_plan con story_path, feed_path, caption, etc.
+        image_url: URL pública de la imagen (requerida para IG/FB en producción)
 
     Returns:
-        dict con resultado: {'estado': 'publicado'|'simulado', 'media_id': str, ...}
+        dict con resultados por red: {'instagram': {...}, 'facebook': {...}, ...}
     """
-    fecha = dia.get("fecha", "desconocida")
-    nombre_dia = dia.get("dia_semana", "dia")
-    story_path = Path(dia.get("story_path", ""))
-    caption = dia.get("caption", "")
-    hashtags = " ".join(dia.get("hashtags", []))
-    caption_completo = f"{caption}\n\n{hashtags}".strip()
+    fecha      = dia.get("fecha", "?")
+    nombre_dia = dia.get("dia_semana", "?")
+    # Si el bot de Telegram sobreescribió los toggles para este post, usarlos
+    override = dia.get("_redes_override")
+    if override:
+        redes = [r for r, v in override.items() if v]
+    else:
+        redes = _redes_activas()
+    resultados = {}
 
-    dry_run = _dry_run_activo()
+    if not redes:
+        logger.warning("Ninguna red activa en .env — no se publica nada")
+        return {}
 
-    if dry_run:
-        # ── Modo simulación ─────────────────────────────────────────────────
-        logger.info(f"[DRY_RUN] Simulando publicación de {nombre_dia} {fecha}")
-        logger.info(f"[DRY_RUN] Story: {story_path}")
-        logger.info(f"[DRY_RUN] Caption: {caption_completo[:80]}...")
-        logger.info(f"[DRY_RUN] Pasos que ejecutaría:")
-        logger.info(f"[DRY_RUN]   1. Subir imagen a CDN → obtener URL pública")
-        logger.info(f"[DRY_RUN]   2. POST /{'{ig_user_id}'}/media → crear container")
-        logger.info(f"[DRY_RUN]   3. POST /{'{ig_user_id}'}/media_publish → publicar")
-        logger.info(f"[DRY_RUN] Publicación simulada correctamente ✓")
+    logger.info(f"Publicando {nombre_dia} {fecha} en: {', '.join(redes)}")
 
-        return {
-            "estado": "simulado",
-            "fecha": fecha,
-            "dia_semana": nombre_dia,
-            "caption_preview": caption_completo[:100],
-            "story_path": str(story_path),
-            "media_id": "DRY_RUN_NO_ID",
-        }
+    if _dry_run():
+        logger.info(f"[DRY_RUN] Simulando publicación en {redes}")
 
-    # ── Modo real ─────────────────────────────────────────────────────────────
-    ig_user_id, access_token = _credenciales()
-
-    if not image_url:
-        raise ValueError(
-            "image_url requerida para publicación real. "
-            "Sube story_path a un CDN antes de llamar a publicar_story()."
-        )
-
-    ultimo_error = None
-    for intento, espera in enumerate(BACKOFF_SEGUNDOS, start=1):
+    if "instagram" in redes:
         try:
-            logger.info(f"Publicando {nombre_dia} {fecha} (intento {intento})...")
-
-            # Paso 1: crear container
-            creation_id = _crear_container_media(
-                ig_user_id, access_token, image_url, caption_completo
-            )
-            logger.info(f"Container creado: {creation_id}")
-
-            # Pequeña espera recomendada por Meta antes de publicar
-            time.sleep(3)
-
-            # Paso 2: publicar
-            media_id = _publicar_container(ig_user_id, access_token, creation_id)
-            logger.info(f"✅ Publicado correctamente — media_id: {media_id}")
-
-            return {
-                "estado": "publicado",
-                "fecha": fecha,
-                "dia_semana": nombre_dia,
-                "media_id": media_id,
-                "creation_id": creation_id,
-            }
-
-        except requests.HTTPError as e:
-            ultimo_error = e
-            status = e.response.status_code if e.response else "?"
-            logger.error(f"HTTP {status} en intento {intento}: {e}")
-            if intento < len(BACKOFF_SEGUNDOS):
-                logger.info(f"Reintentando en {espera}s...")
-                time.sleep(espera)
-
+            resultados["instagram"] = publish_instagram(dia, image_url or "DRY_RUN_URL")
         except Exception as e:
-            ultimo_error = e
-            logger.error(f"Error inesperado en intento {intento}: {e}", exc_info=True)
-            if intento < len(BACKOFF_SEGUNDOS):
-                time.sleep(espera)
+            logger.error(f"Error Instagram: {e}")
+            resultados["instagram"] = {"estado": "error", "error": str(e)}
 
-    raise RuntimeError(
-        f"No se pudo publicar {nombre_dia} {fecha} tras {len(BACKOFF_SEGUNDOS)} intentos: {ultimo_error}"
-    )
+    if "facebook" in redes:
+        try:
+            resultados["facebook"] = publish_facebook(dia, image_url or "DRY_RUN_URL")
+        except Exception as e:
+            logger.error(f"Error Facebook: {e}")
+            resultados["facebook"] = {"estado": "error", "error": str(e)}
+
+    if "twitter" in redes:
+        feed_path = dia.get("feed_path", "")
+        try:
+            resultados["twitter"] = publish_twitter(dia, feed_path)
+        except Exception as e:
+            logger.error(f"Error Twitter: {e}")
+            resultados["twitter"] = {"estado": "error", "error": str(e)}
+
+    return resultados
+
+
+# ── Helpers internos ──────────────────────────────────────────────────────────
+
+def _caption_completo(dia: dict) -> str:
+    caption  = dia.get("caption", "")
+    hashtags = " ".join(dia.get("hashtags", []))
+    return f"{caption}\n\n{hashtags}".strip()
+
+def _caption_twitter_fallback(dia: dict) -> str:
+    """Genera versión Twitter truncada si caption_twitter no existe."""
+    from agents.copy_agent import _acortar_para_twitter
+    return _acortar_para_twitter(dia.get("caption", ""), dia.get("hashtags", []))
 
 
 if __name__ == "__main__":
@@ -210,19 +264,25 @@ if __name__ == "__main__":
         level=logging.INFO,
     )
 
-    print("── Test publisher.py ──")
-    print(f"DRY_RUN: {_dry_run_activo()}")
-    print(f"IG_USER_ID: {'configurado' if os.getenv('IG_USER_ID') else 'NO configurado'}")
-    print(f"IG_ACCESS_TOKEN: {'configurado' if os.getenv('IG_ACCESS_TOKEN') else 'NO configurado'}")
+    print("── Test publisher multi-plataforma ──")
+    print(f"DRY_RUN     : {_dry_run()}")
+    print(f"Redes activas (según .env): {_redes_activas()}")
+    print()
 
-    # Día de prueba en modo DRY_RUN
     dia_prueba = {
         "fecha": "2026-06-04",
         "dia_semana": "miercoles",
         "caption": "El miércoles es de mojito. Sin discusión. Ven a Meraki.",
+        "caption_twitter": "El miércoles es de mojito. Sin discusión.\n#MiercolesDelMojito #MerakiBilbao #Santutxu",
         "hashtags": ["#MiercolesDelMojito", "#MerakiBilbao", "#Santutxu"],
-        "story_path": str(BASE_DIR / "output" / "2026-06-04_miercoles_story.png"),
+        "story_path": str(BASE_DIR / "output" / "2026-06-04_miercoles_story.jpg"),
+        "feed_path":  str(BASE_DIR / "output" / "2026-06-04_miercoles_feed.jpg"),
     }
 
-    resultado = publicar_story(dia_prueba)
-    print(f"\nResultado: {resultado}")
+    resultados = publicar_story(dia_prueba)
+    print("Resultados:")
+    for red, res in resultados.items():
+        print(f"  {red}: {res.get('estado')} — {res.get('media_id') or res.get('tweet_id') or res.get('post_id')}")
+
+    if not resultados:
+        print("  (ninguna red activa — activa PUBLISH_INSTAGRAM=true en .env)")
