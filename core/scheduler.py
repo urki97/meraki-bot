@@ -61,13 +61,17 @@ def ejecutar_pipeline_dia(dia: dict, modelo_ollama: str, modelo_sdxl: str) -> di
 
         # 3. Montar story con Pillow (solo CPU)
         logger.info(f"[{nombre_dia}] Montando story...")
-        story_path = montar_story(
+        from agents.compositor import montar_ambos
+        rutas = montar_ambos(
             image_path=image_path,
             caption=dia["caption"],
             hashtags=dia.get("hashtags", []),
             fecha=fecha,
             dia_semana=nombre_dia,
+            titulo=dia.get("titulo"),
         )
+        story_path = rutas["story"]
+        dia["feed_path"] = str(rutas["feed"])
         dia["story_path"] = str(story_path)
         dia["estado"] = "pendiente_aprobacion"
         logger.info(f"[{nombre_dia}] Story lista: {story_path}")
