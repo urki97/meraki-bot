@@ -65,14 +65,33 @@ dias_config = {
     },
 }
 
+# Captions fijos de referencia por día (estilo aprobado por el bar)
+captions_referencia = {
+    "miercoles": "Con M de Meraki. Con M de Mojito.",
+    "jueves":    "Ven a disfrutar de nuestra riquísima variedad de pintxos.",
+    "viernes":   "La tortilla del viernes te espera desde el lunes.",
+}
+
 dia = dias_config[DIA]
 print(f"\n=== Generando preview para {DIA.upper()} ===\n")
 
-from agents.copy_agent import generar_caption
-print("Generando caption con Ollama...")
-resultado = generar_caption(dia, modelo="llama3.1:8b")
-print("Caption  :", resultado["caption"])
-print("Hashtags :", " ".join(resultado["hashtags"]))
+# Si el día tiene caption de referencia, usarlo directamente; si no, generar con Ollama
+if DIA in captions_referencia:
+    caption_texto = captions_referencia[DIA]
+    hashtags_dia = {
+        "miercoles": ["#MiercolesDelMojito", "#MerakiBilbao", "#Santutxu"],
+        "jueves":    ["#Pintxopote", "#MerakiBilbao", "#Santutxu"],
+        "viernes":   ["#TortillaDelDia", "#MerakiBilbao", "#Santutxu"],
+    }[DIA]
+    resultado = {"caption": caption_texto, "hashtags": hashtags_dia}
+    print("Caption  :", resultado["caption"])
+    print("Hashtags :", " ".join(resultado["hashtags"]))
+else:
+    from agents.copy_agent import generar_caption
+    print("Generando caption con Ollama...")
+    resultado = generar_caption(dia, modelo="llama3.1:8b")
+    print("Caption  :", resultado["caption"])
+    print("Hashtags :", " ".join(resultado["hashtags"]))
 
 from agents.compositor import montar_ambos
 from agents.image_agent import obtener_imagen_base

@@ -48,12 +48,12 @@ Temporada: {dia['temporada']}
 {evento_info}
 
 EJEMPLOS DE BUEN COPY (úsalos como referencia de tono y calidad):
-- "Los mojitos no se piden. Se necesitan."
-- "Hoy el miércoles tiene remedio. Tiene menta."
-- "Jueves. Pintxo. Zurito. En ese orden."
-- "La tortilla del viernes te espera desde el lunes."
-- "Hay semanas que solo se aguantan con un buen cóctel."
-- "No es un plan B. Es el mejor plan del jueves."
+- "Con M de Meraki. Con M de Mojito." ← juego de palabras con la inicial
+- "Jueves. Pintxo. Zurito. En ese orden." ← ritmo de tres, directo
+- "La tortilla del viernes te espera desde el lunes." ← anticipación
+- "Hay semanas que solo se aguantan con un buen cóctel." ← complicidad
+- "No es un plan B. Es el mejor plan del jueves." ← inversión de expectativas
+- "El domingo también tiene planes. Están aquí." ← misterio + invitación
 
 LO QUE HACE UN BUEN COPY:
 ✓ Primera frase: golpe de efecto en menos de 8 palabras

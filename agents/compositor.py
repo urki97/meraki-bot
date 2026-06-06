@@ -205,13 +205,13 @@ def montar_story(
 
     y = y_inicio
 
-    # 6. Título
+    # 6. Título — interlineado generoso para que no se peguen las líneas
     for linea in lineas_titulo:
         x = _centrar_x(linea, fuente_titulo, W)
         _texto_sombra(draw, linea, x, y, fuente_titulo)
-        y += _altura_texto(linea, fuente_titulo) + 8
+        y += _altura_texto(linea, fuente_titulo) + 26
 
-    y += 14  # separación entre título y tagline
+    y += 18  # separación entre título y tagline
 
     # 7. Tagline: primera frase del caption (corta y directa)
     x = _centrar_x(primera_frase, fuente_tagline, W)
@@ -275,9 +275,9 @@ def montar_feed(
     for linea in lineas_titulo:
         x = _centrar_x(linea, fuente_titulo, W)
         _texto_sombra(draw, linea, x, y, fuente_titulo)
-        y += _altura_texto(linea, fuente_titulo) + 6
+        y += _altura_texto(linea, fuente_titulo) + 22
 
-    y += 10
+    y += 14
 
     # Tagline
     primera_frase = caption.split(".")[0].strip()
