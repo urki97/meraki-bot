@@ -194,15 +194,11 @@ def montar_story(
     # Calcular altura total del bloque para centrarlo verticalmente en la zona inferior
     alto_titulo = sum(_altura_texto(l, fuente_titulo) + 8 for l in lineas_titulo)
 
-    # Primera línea de caption como tagline (sin hashtags, máx 32 chars)
+    # Tagline: primera frase del caption, envuelta en máx 2 líneas (~28 chars/línea)
     primera_frase = caption.split(".")[0].strip()
-    if len(primera_frase) > 34:
-        primera_frase = primera_frase[:32].rsplit(" ", 1)[0] + "…"
-    alto_tagline = _altura_texto(primera_frase, fuente_tagline) + 8
+    lineas_tagline = textwrap.wrap(primera_frase, width=28)[:2]
 
-    alto_total = alto_titulo + alto_tagline + 24
     y_inicio = int(H * 0.73)  # empieza al 73% — zona inferior con gradiente
-
     y = y_inicio
 
     # 6. Título — interlineado generoso para que no se peguen las líneas
@@ -213,9 +209,11 @@ def montar_story(
 
     y += 18  # separación entre título y tagline
 
-    # 7. Tagline: primera frase del caption (corta y directa)
-    x = _centrar_x(primera_frase, fuente_tagline, W)
-    _texto_sombra(draw, primera_frase, x, y, fuente_tagline, color=BLANCO_SUAVE)
+    # 7. Tagline en máx 2 líneas — sin truncar con "…"
+    for linea in lineas_tagline:
+        x = _centrar_x(linea, fuente_tagline, W)
+        _texto_sombra(draw, linea, x, y, fuente_tagline, color=BLANCO_SUAVE)
+        y += _altura_texto(linea, fuente_tagline) + 10
 
     # 8. Guardar
     base.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
@@ -279,12 +277,12 @@ def montar_feed(
 
     y += 14
 
-    # Tagline
+    # Tagline en máx 2 líneas — sin truncar con "…"
     primera_frase = caption.split(".")[0].strip()
-    if len(primera_frase) > 38:
-        primera_frase = primera_frase[:36].rsplit(" ", 1)[0] + "…"
-    x = _centrar_x(primera_frase, fuente_tagline, W)
-    _texto_sombra(draw, primera_frase, x, y, fuente_tagline, color=BLANCO_SUAVE)
+    for linea in textwrap.wrap(primera_frase, width=32)[:2]:
+        x = _centrar_x(linea, fuente_tagline, W)
+        _texto_sombra(draw, linea, x, y, fuente_tagline, color=BLANCO_SUAVE)
+        y += _altura_texto(linea, fuente_tagline) + 8
 
     base.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
     logger.info(f"Feed guardado: {output_path} ({output_path.stat().st_size // 1024} KB)")
