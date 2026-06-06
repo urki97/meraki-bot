@@ -39,7 +39,7 @@ def ejecutar_pipeline_dia(dia: dict, modelo_ollama: str, modelo_sdxl: str) -> di
     """
     from agents.copy_agent import generar_caption
     from agents.compositor import montar_story
-    from agents.image_agent import generar_imagen
+    from agents.image_agent import obtener_imagen_base
 
     nombre_dia = dia["dia_semana"]
     fecha = dia["fecha"]
@@ -55,7 +55,7 @@ def ejecutar_pipeline_dia(dia: dict, modelo_ollama: str, modelo_sdxl: str) -> di
 
         # 2. Generar imagen con SDXL-Turbo (Ollama ya terminó — VRAM libre)
         logger.info(f"[{nombre_dia}] Generando imagen base...")
-        image_path = generar_imagen(dia, modelo=modelo_sdxl)
+        image_path = obtener_imagen_base(dia, modelo=modelo_sdxl)
         dia["image_path"] = str(image_path)
         logger.info(f"[{nombre_dia}] Imagen: {image_path}")
 

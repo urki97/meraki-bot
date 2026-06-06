@@ -19,8 +19,9 @@ OUTPUT_DIR = BASE_DIR / "output"
 
 # Prompt base que se usa siempre como contexto visual del bar
 PROMPT_BASE = (
-    "dark atmospheric cocktail bar, warm amber lighting, moody editorial style, "
-    "bokeh background, no text, no people, cinematic, high quality, photorealistic"
+    "cozy cocktail bar interior, red neon sign glow, warm amber and red lighting, "
+    "dark wood bar counter, bottles on shelves background, close-up cocktail with garnish, "
+    "no text, no people, cinematic, photorealistic, high quality, editorial photography"
 )
 
 # Prompt negativo para evitar artefactos comunes
@@ -45,6 +46,54 @@ def _construir_prompt(dia: dict) -> str:
     if extra:
         return f"{PROMPT_BASE}, {extra}"
     return PROMPT_BASE
+
+
+def foto_real_disponible(dia: dict) -> Path | None:
+    """
+    Comprueba si hay fotos reales del bar para usar como fondo.
+    Busca en assets/fotos_reales/ ficheros que contengan el día de la semana.
+    Si hay varias, elige una al azar para variedad.
+    Devuelve la ruta o None si no hay ninguna.
+    """
+    import random
+    fotos_dir = BASE_DIR / "assets" / "fotos_reales"
+    if not fotos_dir.exists():
+        return None
+
+    # Buscar fotos específicas del día primero
+    nombre_dia = dia.get("dia_semana", "")
+    extensiones = {".jpg", ".jpeg", ".png", ".webp"}
+
+    fotos_dia = [
+        f for f in fotos_dir.iterdir()
+        if f.suffix.lower() in extensiones and nombre_dia in f.stem.lower()
+    ]
+    if fotos_dia:
+        elegida = random.choice(fotos_dia)
+        logger.info(f"Foto real específica para {nombre_dia}: {elegida.name}")
+        return elegida
+
+    # Si no hay del día, usar cualquier foto del bar
+    fotos_generales = [f for f in fotos_dir.iterdir() if f.suffix.lower() in extensiones]
+    if fotos_generales:
+        elegida = random.choice(fotos_generales)
+        logger.info(f"Foto real general del bar: {elegida.name}")
+        return elegida
+
+    return None
+
+
+def obtener_imagen_base(dia: dict, modelo: str = "stabilityai/sdxl-turbo") -> Path:
+    """
+    Obtiene la imagen base para el día.
+    Prioridad: 1) foto real del bar, 2) imagen generada por SDXL-Turbo.
+    """
+    foto = foto_real_disponible(dia)
+    if foto:
+        logger.info(f"Usando foto real del bar: {foto}")
+        return foto
+    logger.info("No hay fotos reales — generando con SDXL-Turbo")
+    return generar_imagen(dia, modelo=modelo)
 
 
 def generar_imagen(
