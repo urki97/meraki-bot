@@ -194,9 +194,10 @@ def montar_story(
     # Calcular altura total del bloque para centrarlo verticalmente en la zona inferior
     alto_titulo = sum(_altura_texto(l, fuente_titulo) + 8 for l in lineas_titulo)
 
-    # Tagline: primera frase del caption, envuelta en máx 2 líneas (~28 chars/línea)
+    # Tagline: primera frase del caption, envuelta en máx 2 líneas (~32 chars/línea)
+    # 32 chars a 52px de Poppins Bold caben holgadamente en 1080px de ancho
     primera_frase = caption.split(".")[0].strip()
-    lineas_tagline = textwrap.wrap(primera_frase, width=28)[:2]
+    lineas_tagline = textwrap.wrap(primera_frase, width=32)[:2]
 
     y_inicio = int(H * 0.73)  # empieza al 73% — zona inferior con gradiente
     y = y_inicio
