@@ -1,0 +1,31 @@
+# Instalar en este orden exacto para evitar conflictos CUDA
+
+# 1. PyTorch con soporte CUDA 12.1
+torch
+torchvision
+
+# 2. Generación de imágenes (SDXL-Turbo)
+diffusers
+transformers
+accelerate
+safetensors
+
+# 3. Composición de imágenes
+Pillow
+
+# 4. LLM local
+ollama
+
+# 5. Bot de Telegram
+python-telegram-bot
+
+# 6. Scheduler
+APScheduler
+
+# 7. Validación, configuración y utilidades
+pydantic
+pydantic-settings
+python-dotenv
+PyYAML
+requests
+rich
