@@ -1,12 +1,13 @@
 """
-Compositor: monta la story final 1080x1920 combinando:
-  - Imagen base (de SDXL-Turbo o foto real del bar)
-  - Overlay oscuro semitransparente para legibilidad
-  - Caption centrado en el tercio inferior
-  - Logo Meraki en la esquina inferior centrado
+Compositor v2: monta la story y el feed con diseño editorial.
 
-Acepta image_path opcional para usar fotos reales del bar
-en lugar de la imagen generada por IA.
+Layout inspirado en el estilo del bar:
+  - Titular grande y dominante en el tercio superior
+  - Subtítulo / info en bloque inferior con overlay
+  - Logo Meraki en esquina superior izquierda
+  - Dos formatos de salida:
+      story: 1080x1920 (Instagram/Facebook Stories)
+      feed:  1080x1080 (Instagram/Facebook Feed, Twitter)
 """
 
 import logging
@@ -22,107 +23,112 @@ ASSETS_DIR = BASE_DIR / "assets"
 FONTS_DIR = ASSETS_DIR / "fonts"
 OUTPUT_DIR = BASE_DIR / "output"
 
-# Dimensiones de la story Instagram
-STORY_W = 1080
-STORY_H = 1920
-
-# Overlay oscuro sobre la imagen base
-OVERLAY_ALPHA = int(255 * 0.45)  # 45% opacidad
+# Dimensiones
+STORY_W, STORY_H = 1080, 1920
+FEED_W,  FEED_H  = 1080, 1080
 
 # Colores
-COLOR_TEXTO = (255, 255, 255, 255)        # blanco puro
-COLOR_TEXTO_SOMBRA = (0, 0, 0, 180)      # sombra semitransparente
-COLOR_LINEA_DECORATIVA = (195, 155, 70, 200)  # dorado Meraki
+BLANCO       = (255, 255, 255, 255)
+BLANCO_SUAVE = (235, 235, 235, 220)
+NEGRO        = (0, 0, 0, 255)
+OVERLAY_TOP  = (0, 0, 0, 160)   # overlay superior para logo
+OVERLAY_BOT  = (0, 0, 0, 210)   # overlay inferior para texto info
 
 
-def _obtener_fuente(tamanyo: int, negrita: bool = False) -> ImageFont.FreeTypeFont:
-    """
-    Carga una fuente del sistema. Busca en orden:
-    1. Fonts del proyecto (assets/fonts/)
-    2. Fuentes del sistema Ubuntu
-    3. Fuente por defecto de Pillow como último recurso
-    """
-    candidatos_negrita = [
-        FONTS_DIR / "Inter-Bold.ttf",
-        FONTS_DIR / "Roboto-Bold.ttf",
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-        Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
-        Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"),
-    ]
-    candidatos_normal = [
-        FONTS_DIR / "Inter-Regular.ttf",
-        FONTS_DIR / "Roboto-Regular.ttf",
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-        Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
-        Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"),
-    ]
-    candidatos = candidatos_negrita if negrita else candidatos_normal
-
+def _fuente(tamanyo: int, negrita: bool = False) -> ImageFont.FreeTypeFont:
+    """Carga la mejor fuente disponible en el sistema."""
+    candidatos = (
+        [
+            FONTS_DIR / "Inter-Bold.ttf",
+            FONTS_DIR / "Roboto-Bold.ttf",
+            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+            Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"),
+        ] if negrita else [
+            FONTS_DIR / "Inter-Regular.ttf",
+            FONTS_DIR / "Roboto-Regular.ttf",
+            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"),
+        ]
+    )
     for ruta in candidatos:
         if ruta.exists():
             try:
                 return ImageFont.truetype(str(ruta), tamanyo)
             except Exception:
                 continue
-
-    logger.warning(f"No se encontró fuente TTF, usando fuente por defecto a tamaño {tamanyo}")
     return ImageFont.load_default(size=tamanyo)
 
 
-def _escalar_imagen_base(img: Image.Image) -> Image.Image:
-    """Escala y recorta la imagen base para que llene 1080x1920."""
-    ratio_story = STORY_W / STORY_H
-    ratio_img = img.width / img.height
-
-    if ratio_img > ratio_story:
-        # Imagen más ancha: ajustar por altura
-        nuevo_alto = STORY_H
-        nuevo_ancho = int(img.width * STORY_H / img.height)
+def _escalar_recortar(img: Image.Image, w: int, h: int) -> Image.Image:
+    """Escala y recorta centrado para llenar exactamente w×h."""
+    ratio_dest = w / h
+    ratio_src  = img.width / img.height
+    if ratio_src > ratio_dest:
+        nuevo_h = h
+        nuevo_w = int(img.width * h / img.height)
     else:
-        # Imagen más alta: ajustar por ancho
-        nuevo_ancho = STORY_W
-        nuevo_alto = int(img.height * STORY_W / img.width)
-
-    img = img.resize((nuevo_ancho, nuevo_alto), Image.LANCZOS)
-
-    # Recorte centrado
-    left = (nuevo_ancho - STORY_W) // 2
-    top = (nuevo_alto - STORY_H) // 2
-    return img.crop((left, top, left + STORY_W, top + STORY_H))
+        nuevo_w = w
+        nuevo_h = int(img.height * w / img.width)
+    img = img.resize((nuevo_w, nuevo_h), Image.LANCZOS)
+    left = (nuevo_w - w) // 2
+    top  = (nuevo_h - h) // 2
+    return img.crop((left, top, left + w, top + h))
 
 
-def _aplicar_overlay(base: Image.Image) -> Image.Image:
-    """Aplica overlay oscuro semitransparente para mejorar legibilidad del texto."""
-    overlay = Image.new("RGBA", (STORY_W, STORY_H), (0, 0, 0, OVERLAY_ALPHA))
-    resultado = base.copy().convert("RGBA")
-    resultado = Image.alpha_composite(resultado, overlay)
-    return resultado
+def _overlay_rect(canvas: Image.Image, x0: int, y0: int, x1: int, y1: int, color: tuple) -> None:
+    """Dibuja un rectángulo semitransparente sobre el canvas RGBA."""
+    rect = Image.new("RGBA", (x1 - x0, y1 - y0), color)
+    canvas.paste(rect, (x0, y0), rect)
 
 
-def _dibujar_texto_con_sombra(
+def _texto_centrado(draw: ImageDraw.Draw, texto: str, y: int, fuente, ancho_max: int,
+                    color=BLANCO, sombra: bool = True) -> int:
+    """
+    Dibuja texto centrado horizontalmente. Devuelve la Y final tras el texto.
+    Aplica sombra si se indica.
+    """
+    bbox = fuente.getbbox(texto)
+    tw = bbox[2] - bbox[0]
+    x = (ancho_max - tw) // 2
+    if sombra:
+        draw.text((x + 3, y + 3), texto, font=fuente, fill=(0, 0, 0, 180))
+    draw.text((x, y), texto, font=fuente, fill=color)
+    return y + (bbox[3] - bbox[1]) + 10
+
+
+def _bloque_texto_multilínea(
     draw: ImageDraw.Draw,
     texto: str,
-    pos: tuple[int, int],
-    fuente: ImageFont.FreeTypeFont,
-    color: tuple = COLOR_TEXTO,
-    offset_sombra: int = 3,
-) -> None:
-    """Dibuja texto con sombra para mejor legibilidad sobre imágenes."""
-    x, y = pos
-    # Sombra
-    draw.text((x + offset_sombra, y + offset_sombra), texto, font=fuente, fill=COLOR_TEXTO_SOMBRA)
-    # Texto principal
-    draw.text((x, y), texto, font=fuente, fill=color)
-
-
-def _calcular_alto_texto(lineas: list[str], fuente: ImageFont.FreeTypeFont, espaciado: int) -> int:
-    """Calcula la altura total del bloque de texto."""
-    alto_total = 0
+    y_inicio: int,
+    fuente,
+    ancho_max: int,
+    chars_por_linea: int = 18,
+    espaciado: int = 14,
+    color=BLANCO,
+) -> int:
+    """Dibuja un bloque de texto multilínea centrado. Devuelve Y final."""
+    lineas = textwrap.wrap(texto, width=chars_por_linea)
+    y = y_inicio
     for linea in lineas:
-        bbox = fuente.getbbox(linea)
-        alto_total += (bbox[3] - bbox[1]) + espaciado
-    return alto_total
+        y = _texto_centrado(draw, linea, y, fuente, ancho_max, color=color)
+        y += espaciado
+    return y
 
+
+def _pegar_logo(canvas: Image.Image, logo_path: Path, ancho: int, x: int, y: int) -> None:
+    """Pega el logo redimensionado en la posición indicada."""
+    if not logo_path.exists():
+        logger.warning(f"Logo no encontrado: {logo_path}")
+        return
+    logo = Image.open(logo_path).convert("RGBA")
+    alto = int(logo.height * ancho / logo.width)
+    logo = logo.resize((ancho, alto), Image.LANCZOS)
+    canvas.paste(logo, (x, y), logo)
+
+
+# ── Story 1080×1920 ───────────────────────────────────────────────────────────
 
 def montar_story(
     image_path: Path | str,
@@ -130,128 +136,164 @@ def montar_story(
     hashtags: list[str],
     fecha: str,
     dia_semana: str,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
     logo_path: Path | str | None = None,
     output_path: Path | str | None = None,
 ) -> Path:
     """
-    Monta la story final 1080x1920.
+    Monta la story 1080×1920.
+
+    Layout:
+      - Franja superior (15%): overlay oscuro + logo Meraki
+      - Zona central (55%): imagen sin overlay — foto protagonista
+      - Franja inferior (30%): overlay oscuro + título grande + caption + hashtags
 
     Args:
-        image_path: ruta a la imagen base (SDXL o foto real del bar)
-        caption: texto del post
-        hashtags: lista de hashtags
-        fecha: fecha del post (YYYY-MM-DD)
-        dia_semana: nombre del día (para el nombre del fichero de salida)
-        logo_path: ruta al logo (por defecto assets/logo.png)
-        output_path: ruta de salida (por defecto output/{fecha}_{dia}_story.png)
-
-    Returns:
-        Path de la story generada
+        titulo:    titular grande (si None, usa el tema del día en mayúsculas)
+        subtitulo: línea secundaria bajo el titular
     """
-    if logo_path is None:
-        logo_path = ASSETS_DIR / "logo.png"
+    W, H = STORY_W, STORY_H
+    logo_path = Path(logo_path) if logo_path else ASSETS_DIR / "logo.png"
     if output_path is None:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        output_path = OUTPUT_DIR / f"{fecha}_{dia_semana}_story.png"
-
+        output_path = OUTPUT_DIR / f"{fecha}_{dia_semana}_story.jpg"
     output_path = Path(output_path)
-    image_path = Path(image_path)
 
-    logger.info(f"Montando story para {dia_semana} ({fecha})...")
+    # 1. Base
+    base = Image.open(image_path).convert("RGBA")
+    base = _escalar_recortar(base, W, H)
 
-    # ── 1. Cargar y preparar imagen base ─────────────────────────────────────
-    base = Image.open(image_path).convert("RGB")
-    base = _escalar_imagen_base(base)
+    # 2. Overlay inferior (30% inferior)
+    franja_bot_y = int(H * 0.70)
+    _overlay_rect(base, 0, franja_bot_y, W, H, OVERLAY_BOT)
 
-    # ── 2. Aplicar overlay oscuro ─────────────────────────────────────────────
-    canvas = _aplicar_overlay(base)
-    draw = ImageDraw.Draw(canvas)
+    # 3. Overlay superior (13% superior) para el logo
+    franja_top_h = int(H * 0.13)
+    _overlay_rect(base, 0, 0, W, franja_top_h, OVERLAY_TOP)
 
-    # ── 3. Línea decorativa dorada superior ──────────────────────────────────
-    margen = 60
-    draw.line(
-        [(margen, 100), (STORY_W - margen, 100)],
-        fill=COLOR_LINEA_DECORATIVA,
-        width=2,
-    )
+    draw = ImageDraw.Draw(base)
 
-    # ── 4. Nombre del bar en la parte superior ────────────────────────────────
-    fuente_nombre = _obtener_fuente(38, negrita=True)
-    nombre_bar = "MERAKI BAR & COCKTAILS"
-    bbox = fuente_nombre.getbbox(nombre_bar)
-    ancho_nombre = bbox[2] - bbox[0]
-    x_nombre = (STORY_W - ancho_nombre) // 2
-    _dibujar_texto_con_sombra(draw, nombre_bar, (x_nombre, 120), fuente_nombre, COLOR_LINEA_DECORATIVA)
+    # 4. Logo en esquina superior izquierda
+    _pegar_logo(base, logo_path, ancho=140, x=40, y=20)
 
-    # ── 5. Línea decorativa dorada debajo del nombre ──────────────────────────
-    draw.line(
-        [(margen, 175), (STORY_W - margen, 175)],
-        fill=COLOR_LINEA_DECORATIVA,
-        width=1,
-    )
+    # 5. Título grande en el inicio de la franja inferior
+    y = franja_bot_y + 40
+    if titulo:
+        fuente_titulo = _fuente(110, negrita=True)
+        lineas_titulo = textwrap.wrap(titulo.upper(), width=12)
+        for linea in lineas_titulo:
+            y = _texto_centrado(draw, linea, y, fuente_titulo, W)
+            y += 8
+        y += 20
 
-    # ── 6. Caption en el tercio inferior ─────────────────────────────────────
-    fuente_caption = _obtener_fuente(52, negrita=False)
-    fuente_hashtags = _obtener_fuente(38, negrita=False)
+    # 6. Caption en tamaño mediano
+    fuente_caption = _fuente(52, negrita=False)
+    lineas = textwrap.wrap(caption, width=22)
+    for linea in lineas[:4]:   # máx 4 líneas para no saturar
+        y = _texto_centrado(draw, linea, y, fuente_caption, W, color=BLANCO_SUAVE)
+        y += 6
 
-    # Ajustar caption a múltiples líneas (máx ~22 chars por línea)
-    lineas_caption = textwrap.wrap(caption, width=22)
-    espaciado_lineas = 18
+    # 7. Hashtags pequeños
+    y += 20
+    fuente_hash = _fuente(38)
+    texto_hash = "  ".join(hashtags)
+    _texto_centrado(draw, texto_hash, y, fuente_hash, W, color=(180, 180, 180, 200))
 
-    alto_caption = _calcular_alto_texto(lineas_caption, fuente_caption, espaciado_lineas)
-    alto_hashtags = 55  # una línea de hashtags
+    # 8. Guardar
+    base.convert("RGB").save(output_path, "JPEG", quality=92, optimize=True)
+    logger.info(f"Story guardada: {output_path} ({output_path.stat().st_size // 1024} KB)")
+    return output_path
 
-    # Zona de texto: desde el 58% de la altura hasta el 88%
-    zona_texto_top = int(STORY_H * 0.58)
-    zona_texto_bottom = int(STORY_H * 0.88)
-    zona_alto = zona_texto_bottom - zona_texto_top
 
-    # Centrar verticalmente el bloque de texto en la zona
-    y_actual = zona_texto_top + (zona_alto - alto_caption - alto_hashtags - 30) // 2
+# ── Feed 1080×1080 ────────────────────────────────────────────────────────────
 
-    for linea in lineas_caption:
-        bbox = fuente_caption.getbbox(linea)
-        ancho_linea = bbox[2] - bbox[0]
-        x_linea = (STORY_W - ancho_linea) // 2
-        _dibujar_texto_con_sombra(draw, linea, (x_linea, y_actual), fuente_caption)
-        alto_linea = bbox[3] - bbox[1]
-        y_actual += alto_linea + espaciado_lineas
+def montar_feed(
+    image_path: Path | str,
+    caption: str,
+    hashtags: list[str],
+    fecha: str,
+    dia_semana: str,
+    titulo: str | None = None,
+    logo_path: Path | str | None = None,
+    output_path: Path | str | None = None,
+) -> Path:
+    """
+    Monta imagen cuadrada 1080×1080 para feed de Instagram/Facebook/Twitter.
+
+    Layout:
+      - Imagen de fondo recortada a cuadrado
+      - Overlay inferior (35%) con título + caption corto
+      - Logo esquina superior izquierda pequeño
+    """
+    W, H = FEED_W, FEED_H
+    logo_path = Path(logo_path) if logo_path else ASSETS_DIR / "logo.png"
+    if output_path is None:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        output_path = OUTPUT_DIR / f"{fecha}_{dia_semana}_feed.jpg"
+    output_path = Path(output_path)
+
+    base = Image.open(image_path).convert("RGBA")
+    base = _escalar_recortar(base, W, H)
+
+    # Overlay inferior (35%)
+    franja_bot_y = int(H * 0.65)
+    _overlay_rect(base, 0, franja_bot_y, W, H, OVERLAY_BOT)
+
+    # Overlay superior (10%)
+    _overlay_rect(base, 0, 0, W, int(H * 0.10), OVERLAY_TOP)
+
+    draw = ImageDraw.Draw(base)
+
+    # Logo
+    _pegar_logo(base, logo_path, ancho=100, x=30, y=15)
+
+    y = franja_bot_y + 30
+
+    # Título
+    if titulo:
+        fuente_titulo = _fuente(88, negrita=True)
+        lineas_titulo = textwrap.wrap(titulo.upper(), width=14)
+        for linea in lineas_titulo[:2]:
+            y = _texto_centrado(draw, linea, y, fuente_titulo, W)
+            y += 6
+        y += 15
+
+    # Caption corto (máx 2 líneas en el feed)
+    fuente_caption = _fuente(44)
+    lineas = textwrap.wrap(caption, width=26)
+    for linea in lineas[:2]:
+        y = _texto_centrado(draw, linea, y, fuente_caption, W, color=BLANCO_SUAVE)
+        y += 4
 
     # Hashtags
-    texto_hashtags = " ".join(hashtags)
-    y_actual += 15
-    bbox = fuente_hashtags.getbbox(texto_hashtags)
-    ancho_hashtags = bbox[2] - bbox[0]
-    x_hashtags = (STORY_W - ancho_hashtags) // 2
-    _dibujar_texto_con_sombra(
-        draw, texto_hashtags, (x_hashtags, y_actual),
-        fuente_hashtags, color=(180, 180, 180, 255)
-    )
+    y += 12
+    fuente_hash = _fuente(32)
+    _texto_centrado(draw, "  ".join(hashtags), y, fuente_hash, W, color=(160, 160, 160, 200))
 
-    # ── 7. Logo en la parte inferior centrado ─────────────────────────────────
-    logo_path = Path(logo_path)
-    if logo_path.exists():
-        logo = Image.open(logo_path).convert("RGBA")
-        # Escalar logo a 160px de ancho manteniendo proporción
-        logo_ancho = 160
-        logo_alto = int(logo.height * logo_ancho / logo.width)
-        logo = logo.resize((logo_ancho, logo_alto), Image.LANCZOS)
-
-        # Posición: centrado horizontalmente, 60px del borde inferior
-        x_logo = (STORY_W - logo_ancho) // 2
-        y_logo = STORY_H - logo_alto - 60
-
-        # Pegar con transparencia
-        canvas.paste(logo, (x_logo, y_logo), logo)
-    else:
-        logger.warning(f"Logo no encontrado en {logo_path}")
-
-    # ── 8. Guardar ────────────────────────────────────────────────────────────
-    canvas_rgb = canvas.convert("RGB")
-    canvas_rgb.save(output_path, "JPEG", quality=92, optimize=True)
-    logger.info(f"Story guardada: {output_path} ({output_path.stat().st_size // 1024} KB)")
-
+    base.convert("RGB").save(output_path, "JPEG", quality=92, optimize=True)
+    logger.info(f"Feed guardado: {output_path} ({output_path.stat().st_size // 1024} KB)")
     return output_path
+
+
+def montar_ambos(
+    image_path: Path | str,
+    caption: str,
+    hashtags: list[str],
+    fecha: str,
+    dia_semana: str,
+    titulo: str | None = None,
+    logo_path: Path | str | None = None,
+) -> dict[str, Path]:
+    """
+    Genera story (1080×1920) y feed (1080×1080) en una sola llamada.
+    Devuelve {'story': Path, 'feed': Path}.
+    """
+    story = montar_story(image_path, caption, hashtags, fecha, dia_semana,
+                         titulo=titulo, logo_path=logo_path)
+    feed  = montar_feed(image_path, caption, hashtags, fecha, dia_semana,
+                        titulo=titulo, logo_path=logo_path)
+    return {"story": story, "feed": feed}
 
 
 if __name__ == "__main__":
@@ -262,35 +304,26 @@ if __name__ == "__main__":
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
         level=logging.INFO,
     )
-
     load_dotenv(BASE_DIR / ".env")
 
-    # Buscar imagen base generada por el image_agent
     imagen_base = OUTPUT_DIR / "2026-06-04_miercoles_base.png"
     if not imagen_base.exists():
-        # Crear imagen de prueba si no existe
-        logger.info("Creando imagen base de prueba (800x800 oscura)...")
-        img_prueba = Image.new("RGB", (800, 800), (15, 15, 25))
-        draw_prueba = ImageDraw.Draw(img_prueba)
-        draw_prueba.ellipse([200, 200, 600, 600], fill=(40, 25, 10))
+        logger.info("Creando imagen base de prueba...")
+        img = Image.new("RGB", (1024, 1024), (20, 10, 30))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse([200, 200, 800, 800], fill=(60, 30, 15))
         imagen_base.parent.mkdir(parents=True, exist_ok=True)
-        img_prueba.save(imagen_base)
+        img.save(imagen_base)
 
-    caption_prueba = "El miércoles es de mojito. Sin discusión. Ven a Meraki."
-    hashtags_prueba = ["#MiercolesDelMojito", "#MerakiBilbao", "#Santutxu"]
-
-    story_path = montar_story(
+    rutas = montar_ambos(
         image_path=imagen_base,
-        caption=caption_prueba,
-        hashtags=hashtags_prueba,
+        caption="El miércoles es de mojito. Sin discusión. Ven a Meraki.",
+        hashtags=["#MiercolesDelMojito", "#MerakiBilbao", "#Santutxu"],
         fecha="2026-06-04",
         dia_semana="miercoles",
+        titulo="Miércoles de Mojitos",
     )
 
-    print(f"\nStory generada: {story_path}")
-    print(f"Tamaño: {story_path.stat().st_size // 1024} KB")
-
-    # Verificar dimensiones
-    with Image.open(story_path) as img:
-        print(f"Dimensiones: {img.size[0]}x{img.size[1]} px")
-        print("✓ Story montada correctamente" if img.size == (STORY_W, STORY_H) else "✗ Dimensiones incorrectas")
+    for formato, ruta in rutas.items():
+        with Image.open(ruta) as img:
+            print(f"{formato}: {ruta.name} — {img.size[0]}×{img.size[1]} px — {ruta.stat().st_size // 1024} KB")
