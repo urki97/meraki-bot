@@ -83,16 +83,19 @@ def foto_real_disponible(dia: dict) -> Path | None:
     return None
 
 
-def obtener_imagen_base(dia: dict, modelo: str = "stabilityai/sdxl-turbo") -> Path:
+def obtener_imagen_base(dia: dict, modelo: str = "stabilityai/sdxl-turbo",
+                        usar_fotos_reales: bool = False) -> Path:
     """
     Obtiene la imagen base para el día.
-    Prioridad: 1) foto real del bar, 2) imagen generada por SDXL-Turbo.
+    Por defecto genera siempre con SDXL-Turbo.
+    Pasar usar_fotos_reales=True solo cuando se quiera usar una foto manual específica.
     """
-    foto = foto_real_disponible(dia)
-    if foto:
-        logger.info(f"Usando foto real del bar: {foto}")
-        return foto
-    logger.info("No hay fotos reales — generando con SDXL-Turbo")
+    if usar_fotos_reales:
+        foto = foto_real_disponible(dia)
+        if foto:
+            logger.info(f"Usando foto real del bar: {foto}")
+            return foto
+    logger.info("Generando imagen con SDXL-Turbo...")
     return generar_imagen(dia, modelo=modelo)
 
 

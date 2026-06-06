@@ -35,23 +35,27 @@ OVERLAY_TOP  = (0, 0, 0, 160)   # overlay superior para logo
 OVERLAY_BOT  = (0, 0, 0, 210)   # overlay inferior para texto info
 
 
-def _fuente(tamanyo: int, negrita: bool = False) -> ImageFont.FreeTypeFont:
-    """Carga la mejor fuente disponible en el sistema."""
-    candidatos = (
-        [
-            FONTS_DIR / "Inter-Bold.ttf",
-            FONTS_DIR / "Roboto-Bold.ttf",
+def _fuente(tamanyo: int, negrita: bool = False, black: bool = False, italic: bool = False) -> ImageFont.FreeTypeFont:
+    """Carga Montserrat si está disponible, con fallback a fuentes del sistema."""
+    if black:
+        candidatos = [FONTS_DIR / "Montserrat-Black.ttf"]
+    elif negrita:
+        candidatos = [
+            FONTS_DIR / "Montserrat-Bold.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-            Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"),
-        ] if negrita else [
-            FONTS_DIR / "Inter-Regular.ttf",
-            FONTS_DIR / "Roboto-Regular.ttf",
+        ]
+    elif italic:
+        candidatos = [
+            FONTS_DIR / "Montserrat-LightItalic.ttf",
+            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
+        ]
+    else:
+        candidatos = [
+            FONTS_DIR / "Montserrat-Regular.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-            Path("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"),
         ]
-    )
     for ruta in candidatos:
         if ruta.exists():
             try:
@@ -177,28 +181,31 @@ def montar_story(
     # 4. Logo en esquina superior izquierda
     _pegar_logo(base, logo_path, ancho=140, x=40, y=20)
 
-    # 5. Título grande en el inicio de la franja inferior
-    y = franja_bot_y + 40
+    # 5. Título en Montserrat Black — grande y dominante
+    y = franja_bot_y + 35
     if titulo:
-        fuente_titulo = _fuente(110, negrita=True)
-        lineas_titulo = textwrap.wrap(titulo.upper(), width=12)
+        fuente_titulo = _fuente(118, black=True)
+        lineas_titulo = textwrap.wrap(titulo.upper(), width=11)
         for linea in lineas_titulo:
             y = _texto_centrado(draw, linea, y, fuente_titulo, W)
-            y += 8
-        y += 20
+            y += 4
+        # Línea dorada decorativa bajo el título
+        draw.line([(W // 2 - 120, y + 10), (W // 2 + 120, y + 10)],
+                  fill=(195, 155, 70, 200), width=2)
+        y += 28
 
-    # 6. Caption en tamaño mediano
-    fuente_caption = _fuente(52, negrita=False)
+    # 6. Caption en Montserrat Regular — limpio y legible
+    fuente_caption = _fuente(50, negrita=False)
     lineas = textwrap.wrap(caption, width=22)
-    for linea in lineas[:4]:   # máx 4 líneas para no saturar
+    for linea in lineas[:4]:
         y = _texto_centrado(draw, linea, y, fuente_caption, W, color=BLANCO_SUAVE)
-        y += 6
+        y += 4
 
-    # 7. Hashtags pequeños
-    y += 20
-    fuente_hash = _fuente(38)
+    # 7. Hashtags en itálica pequeña
+    y += 18
+    fuente_hash = _fuente(36, italic=True)
     texto_hash = "  ".join(hashtags)
-    _texto_centrado(draw, texto_hash, y, fuente_hash, W, color=(180, 180, 180, 200))
+    _texto_centrado(draw, texto_hash, y, fuente_hash, W, color=(160, 160, 160, 200))
 
     # 8. Guardar
     base.convert("RGB").save(output_path, "JPEG", quality=92, optimize=True)
@@ -250,25 +257,27 @@ def montar_feed(
 
     y = franja_bot_y + 30
 
-    # Título
+    # Título en Montserrat Black
     if titulo:
-        fuente_titulo = _fuente(88, negrita=True)
-        lineas_titulo = textwrap.wrap(titulo.upper(), width=14)
+        fuente_titulo = _fuente(90, black=True)
+        lineas_titulo = textwrap.wrap(titulo.upper(), width=13)
         for linea in lineas_titulo[:2]:
             y = _texto_centrado(draw, linea, y, fuente_titulo, W)
-            y += 6
-        y += 15
+            y += 4
+        draw.line([(W // 2 - 100, y + 8), (W // 2 + 100, y + 8)],
+                  fill=(195, 155, 70, 200), width=2)
+        y += 24
 
-    # Caption corto (máx 2 líneas en el feed)
-    fuente_caption = _fuente(44)
+    # Caption corto
+    fuente_caption = _fuente(42)
     lineas = textwrap.wrap(caption, width=26)
     for linea in lineas[:2]:
         y = _texto_centrado(draw, linea, y, fuente_caption, W, color=BLANCO_SUAVE)
         y += 4
 
-    # Hashtags
+    # Hashtags en itálica
     y += 12
-    fuente_hash = _fuente(32)
+    fuente_hash = _fuente(30, italic=True)
     _texto_centrado(draw, "  ".join(hashtags), y, fuente_hash, W, color=(160, 160, 160, 200))
 
     base.convert("RGB").save(output_path, "JPEG", quality=92, optimize=True)

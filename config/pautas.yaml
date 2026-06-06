@@ -20,6 +20,8 @@ tono:
     - exceso de emojis
     - inventar eventos o precios no confirmados
     - anglicismos innecesarios
+    - mencionar marcas de alcohol específicas (Havana Club, etc.)
+    - mencionar precios concretos (pueden cambiar sin avisar)
   usar:
     - vocabulario cotidiano del País Vasco
     - referencias locales reales (Santutxu, Bilbao)
@@ -78,7 +80,7 @@ dias:
   miercoles:
     publicar: true  # rotatorio — no siempre
     tema: "Miércoles de mojitos"
-    enfoque: "promoción fija e inamovible — mojitos a precio especial"
+    enfoque: "promoción fija e inamovible — mojitos a precio especial (no mencionar precio ni marca)"
     hashtag_variable: "#MiercolesDelMojito"
     prompt_imagen_extra: >
       mojito cocktail with fresh mint leaves, lime wedge, striped straw, strawberry garnish,
