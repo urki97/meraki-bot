@@ -43,10 +43,10 @@ BLANCO_SUAVE = (240, 235, 225, 235)
 def _fuente(tamanyo: int, display: bool = False, italic: bool = False) -> ImageFont.FreeTypeFont:
     """Carga la fuente adecuada según el rol."""
     if display:
-        # Anton: condensada, impactante, perfecta para títulos de bar
+        # Poppins Bold: geométrica, moderna, elegante — no agresiva
         candidatos = [
-            FONTS_DIR / "Anton-Regular.ttf",
-            FONTS_DIR / "Montserrat-Black.ttf",
+            FONTS_DIR / "Poppins-Bold.ttf",
+            FONTS_DIR / "Montserrat-Bold.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
         ]
     elif italic:
@@ -184,12 +184,12 @@ def montar_story(
     # 5. Bloque de texto en safe zone inferior
     # Safe zone inferior empieza en H - STORY_SAFE_BOTTOM = 1670
     # Colocamos el bloque 40px sobre ese límite → texto arranca en ~1350 y acaba antes de 1670
-    fuente_titulo = _fuente(144, display=True)
+    fuente_titulo = _fuente(130, display=True)
     fuente_tagline = _fuente(52)
 
-    # Preparar líneas del título (1-2 palabras por línea, max 10 chars)
-    titulo_limpio = (titulo or dia_semana.upper()).replace("\n", " ").strip().upper()
-    lineas_titulo = textwrap.wrap(titulo_limpio, width=10)[:3]
+    # Título en Title Case — más elegante que todo mayúsculas
+    titulo_limpio = (titulo or dia_semana.capitalize()).replace("\n", " ").strip()
+    lineas_titulo = textwrap.wrap(titulo_limpio, width=14)[:3]
 
     # Calcular altura total del bloque para centrarlo verticalmente en la zona inferior
     alto_titulo = sum(_altura_texto(l, fuente_titulo) + 8 for l in lineas_titulo)
@@ -268,8 +268,8 @@ def montar_feed(
     fuente_titulo = _fuente(108, display=True)
     fuente_tagline = _fuente(40)
 
-    titulo_limpio = (titulo or dia_semana.upper()).replace("\n", " ").strip().upper()
-    lineas_titulo = textwrap.wrap(titulo_limpio, width=12)[:2]
+    titulo_limpio = (titulo or dia_semana.capitalize()).replace("\n", " ").strip()
+    lineas_titulo = textwrap.wrap(titulo_limpio, width=16)[:2]
 
     y = int(H * 0.62)
     for linea in lineas_titulo:
