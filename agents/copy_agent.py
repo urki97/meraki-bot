@@ -39,8 +39,8 @@ def _construir_prompt(dia: dict, pautas: dict) -> str:
         evento_info = f"Evento especial esta semana: {dia['evento_especial']}."
 
     return f"""Eres el community manager de {bar['nombre']}, un bar de cócteles en {bar['direccion']}.
-Slogan del bar: "{bar['slogan']}"
-Instagram: {bar['instagram']} — cuenta pequeña con {bar['seguidores']} seguidores, tono cercano.
+Slogan: "{bar['slogan']}"
+Cuenta pequeña ({bar['seguidores']} seguidores) — tono cercano, como hablaría un amigo del barrio.
 
 Escribe el caption para Instagram del {dia['dia_semana'].upper()}.
 
@@ -54,12 +54,14 @@ Información del día:
 
 Reglas de tono (OBLIGATORIAS):
 - Evitar: {evitar}
+- NO menciones el nombre del bar ("Meraki") ni el barrio ("Santutxu") en el texto
+  — el logo ya identifica el bar, no hace falta repetirlo
 - Usar: {usar}
-- Máximo 3 hashtags en total
-- Hashtags fijos al final: {hashtags_fijos}
-- Hashtag variable del día: {dia['hashtag_variable']}
+- Mensaje sencillo y directo: máximo 2 frases, máximo 100 caracteres en total
+- Primera frase: impacto inmediato, que enganche en 2 segundos
+- Segunda frase: invitación concreta (ven, pásate, te esperamos…)
+- Máximo 3 hashtags al final: {hashtags_fijos} + {dia['hashtag_variable']}
 - En español siempre
-- Máximo 150 caracteres en el texto (sin contar hashtags)
 - Sin inventar precios, eventos ni características no confirmadas
 
 Responde ÚNICAMENTE con este formato JSON exacto, sin texto adicional:
