@@ -139,6 +139,15 @@ def generar_plan_semanal(
     if evento_nombre:
         logger.info(f"Evento especial detectado: {evento_nombre}")
 
+    # Determinar qué día rotativo le toca esta semana (miérc/juev/vier)
+    config_rotacion = pautas.get("publicacion_rotatoria", {})
+    rotacion_activa = config_rotacion.get("activa", False)
+    eventos_rotativos = config_rotacion.get("eventos_rotativos", [])
+    siempre_publicar = config_rotacion.get("siempre_publicar", [])
+    numero_semana = hoy.isocalendar()[1]
+    dia_rotativo = eventos_rotativos[numero_semana % len(eventos_rotativos)] if eventos_rotativos else None
+    logger.info(f"Semana {numero_semana} — día rotativo: {dia_rotativo}")
+
     # Mapeo de índice a nombre de día en minúsculas (clave en pautas.yaml)
     nombres_dia = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
 
@@ -146,6 +155,29 @@ def generar_plan_semanal(
     for i, nombre_dia in enumerate(nombres_dia):
         fecha = lunes + timedelta(days=i)
         config_dia = dias_config[nombre_dia]
+
+        # Comprobar si se publica este día
+        if not config_dia.get("publicar", True):
+            logger.info(f"  Saltando {nombre_dia} — {config_dia.get('motivo', 'no publicar')}")
+            plan[str(fecha)] = {
+                "fecha": str(fecha),
+                "dia_semana": nombre_dia,
+                "estado": "no_publicar",
+                "motivo": config_dia.get("motivo", "cerrado"),
+            }
+            continue
+
+        # Si la rotación está activa y este día es rotativo, comprobar si le toca
+        if rotacion_activa and nombre_dia in eventos_rotativos and nombre_dia not in siempre_publicar:
+            if nombre_dia != dia_rotativo:
+                logger.info(f"  Saltando {nombre_dia} — no le toca esta semana (toca {dia_rotativo})")
+                plan[str(fecha)] = {
+                    "fecha": str(fecha),
+                    "dia_semana": nombre_dia,
+                    "estado": "no_publicar",
+                    "motivo": f"rotación — esta semana publica {dia_rotativo}",
+                }
+                continue
 
         logger.info(f"Planificando {nombre_dia} ({fecha})...")
 
@@ -164,7 +196,7 @@ def generar_plan_semanal(
             "tema": config_dia["tema"],
             "enfoque": config_dia["enfoque"],
             "idea_creativa": idea,
-            "titulo": config_dia["tema"].title(),  # titular grande para el compositor
+            "titulo": config_dia["tema"].title(),
             "hashtag_variable": config_dia["hashtag_variable"],
             "prompt_imagen_extra": config_dia.get("prompt_imagen_extra", ""),
             "temporada": temporada_nombre,
@@ -197,7 +229,11 @@ if __name__ == "__main__":
 
     print("\n── Plan de la semana ──────────────────────────────────────")
     for fecha, dia in plan.items():
-        print(f"\n{dia['dia_semana'].upper()} {fecha}")
+        estado = dia.get("estado", "pendiente")
+        if estado == "no_publicar":
+            print(f"\n{dia['dia_semana'].upper()} {fecha}  ✗ {dia.get('motivo', 'no publicar')}")
+            continue
+        print(f"\n{dia['dia_semana'].upper()} {fecha}  ✓ publicar")
         print(f"  Tema       : {dia['tema']}")
         print(f"  Idea       : {dia['idea_creativa']}")
         print(f"  Hashtag    : {dia['hashtag_variable']}")
