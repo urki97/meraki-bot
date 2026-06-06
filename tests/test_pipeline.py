@@ -70,7 +70,7 @@ class TestPlanner(unittest.TestCase):
         """El planner debe generar exactamente 7 entradas, una por día."""
         # Mockear la llamada a Ollama para no depender del servicio
         with patch("ollama.generate") as mock_ollama:
-            mock_ollama.return_value = {"response": "Idea de prueba para el test."}
+            mock_ollama.return_value = {"response": "Idea de prueba para el test"}
             from agents.planner import generar_plan_semanal
             plan = generar_plan_semanal(forzar=True)
 
@@ -84,7 +84,7 @@ class TestPlanner(unittest.TestCase):
             "intentos_regeneracion",
         }
         with patch("ollama.generate") as mock_ollama:
-            mock_ollama.return_value = {"response": "Idea de prueba."}
+            mock_ollama.return_value = {"response": "Idea de prueba"}
             from agents.planner import generar_plan_semanal
             plan = generar_plan_semanal(forzar=True)
 
@@ -95,7 +95,7 @@ class TestPlanner(unittest.TestCase):
     def test_estados_iniciales_pendiente(self):
         """Todos los días deben empezar en estado 'pendiente'."""
         with patch("ollama.generate") as mock_ollama:
-            mock_ollama.return_value = {"response": "Idea de prueba."}
+            mock_ollama.return_value = {"response": "Idea de prueba"}
             from agents.planner import generar_plan_semanal
             plan = generar_plan_semanal(forzar=True)
 
@@ -105,7 +105,7 @@ class TestPlanner(unittest.TestCase):
     def test_plan_se_persiste_en_disco(self):
         """El plan generado debe persistirse en state/weekly_plan.json."""
         with patch("ollama.generate") as mock_ollama:
-            mock_ollama.return_value = {"response": "Idea."}
+            mock_ollama.return_value = {"response": "Idea"}
             from agents.planner import generar_plan_semanal
             generar_plan_semanal(forzar=True)
 
@@ -216,8 +216,16 @@ class TestPublisher(unittest.TestCase):
     """Verifica el publisher en modo DRY_RUN."""
 
     def test_dry_run_no_llama_a_api(self):
-        """Con DRY_RUN=true no debe hacer ninguna llamada HTTP."""
+        """Con DRY_RUN=true no debe hacer ninguna llamada HTTP real."""
         os.environ["DRY_RUN"] = "true"
+        os.environ["PUBLISH_INSTAGRAM"] = "true"
+        os.environ["PUBLISH_FACEBOOK"] = "false"
+        os.environ["PUBLISH_TWITTER"] = "false"
+
+        # Recargar módulo para que tome los nuevos env vars
+        import importlib
+        import core.publisher
+        importlib.reload(core.publisher)
         from core.publisher import publicar_story
 
         dia_prueba = {
@@ -226,18 +234,26 @@ class TestPublisher(unittest.TestCase):
             "caption": "Test caption.",
             "hashtags": ["#MerakiBilbao"],
             "story_path": str(BASE_DIR / "output" / "test.jpg"),
+            "feed_path": str(BASE_DIR / "output" / "test_feed.jpg"),
         }
 
         with patch("requests.post") as mock_post:
             resultado = publicar_story(dia_prueba)
             mock_post.assert_not_called()
 
-        self.assertEqual(resultado["estado"], "simulado")
-        self.assertEqual(resultado["media_id"], "DRY_RUN_NO_ID")
+        self.assertIn("instagram", resultado)
+        self.assertEqual(resultado["instagram"]["estado"], "simulado")
 
     def test_dry_run_devuelve_estructura_correcta(self):
-        """El resultado DRY_RUN debe tener todos los campos esperados."""
+        """El resultado DRY_RUN debe contener la red Instagram simulada."""
         os.environ["DRY_RUN"] = "true"
+        os.environ["PUBLISH_INSTAGRAM"] = "true"
+        os.environ["PUBLISH_FACEBOOK"] = "false"
+        os.environ["PUBLISH_TWITTER"] = "false"
+
+        import importlib
+        import core.publisher
+        importlib.reload(core.publisher)
         from core.publisher import publicar_story
 
         dia = {
@@ -246,10 +262,13 @@ class TestPublisher(unittest.TestCase):
             "caption": "Test.",
             "hashtags": [],
             "story_path": "",
+            "feed_path": "",
         }
         resultado = publicar_story(dia)
-        for campo in ["estado", "fecha", "dia_semana", "media_id"]:
-            self.assertIn(campo, resultado, f"Falta campo '{campo}' en resultado DRY_RUN")
+        self.assertIn("instagram", resultado)
+        ig = resultado["instagram"]
+        for campo in ["red", "estado", "media_id"]:
+            self.assertIn(campo, ig, f"Falta campo '{campo}' en resultado Instagram DRY_RUN")
 
 
 class TestPipelineIntegrado(unittest.TestCase):
@@ -270,7 +289,7 @@ class TestPipelineIntegrado(unittest.TestCase):
         if state_file.exists():
             state_file.unlink()
 
-        respuesta_plan = {"response": "Cócteles de verano para arrancar la semana."}
+        respuesta_plan = "Cócteles de verano para arrancar la semana."
         respuesta_copy = json.dumps({
             "caption": "¡Arranca la semana con energía en Meraki!",
             "hashtags": ["#CoctelesDeTemporada", "#MerakiBilbao", "#Santutxu"],
@@ -283,6 +302,9 @@ class TestPipelineIntegrado(unittest.TestCase):
         img_simulada.save(img_path_simulada)
 
         os.environ["DRY_RUN"] = "true"
+        os.environ["PUBLISH_INSTAGRAM"] = "true"
+        os.environ["PUBLISH_FACEBOOK"] = "false"
+        os.environ["PUBLISH_TWITTER"] = "false"
 
         with patch("ollama.generate") as mock_ollama, \
              patch("agents.image_agent.generar_imagen", return_value=img_path_simulada):
@@ -317,9 +339,13 @@ class TestPipelineIntegrado(unittest.TestCase):
             dia["story_path"] = str(story_path)
 
             # Publisher DRY_RUN
+            import importlib, core.publisher
+            importlib.reload(core.publisher)
             from core.publisher import publicar_story
+            dia["feed_path"] = str(BASE_DIR / "output" / "pipeline_test_feed.png")
             resultado = publicar_story(dia)
-            self.assertEqual(resultado["estado"], "simulado")
+            self.assertIn("instagram", resultado)
+            self.assertEqual(resultado["instagram"]["estado"], "simulado")
 
         logger.info(f"✓ Pipeline completo OK para {dia['dia_semana']} {fecha}")
 
