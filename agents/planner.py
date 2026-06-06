@@ -164,6 +164,7 @@ def generar_plan_semanal(
             "tema": config_dia["tema"],
             "enfoque": config_dia["enfoque"],
             "idea_creativa": idea,
+            "titulo": config_dia["tema"].title(),  # titular grande para el compositor
             "hashtag_variable": config_dia["hashtag_variable"],
             "prompt_imagen_extra": config_dia.get("prompt_imagen_extra", ""),
             "temporada": temporada_nombre,
