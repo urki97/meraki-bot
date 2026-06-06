@@ -7,3 +7,4 @@ output/
 logs/
 state/weekly_plan.json
 .DS_Store
+.claude/
