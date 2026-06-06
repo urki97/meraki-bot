@@ -7,8 +7,8 @@ bar:
   instagram: "@merakibilbao"
   direccion: "Calle Santo Rosario 1, Santutxu, Bilbao"
   especialidad: "cócteles de autor y pintxos"
-  ambiente: "moderno, cercano, bilbaíno"
-  seguidores: 458  # cuenta pequeña — tono cercano, no corporativo
+  ambiente: "moderno, cercano, elegante"
+  seguidores: 458 # cuenta pequeña — tono cercano, no corporativo
   terraza: false
 
 tono:
@@ -30,7 +30,7 @@ hashtags:
   fijos:
     - "#MerakiBilbao"
     - "#Santutxu"
-  maximo_por_post: 3  # fijos + 1 variable
+  maximo_por_post: 3 # fijos + 1 variable
   nota: "naturales, no spam — integrados o al final del caption"
 
 imagen:
@@ -43,7 +43,7 @@ imagen:
     high quality, editorial photography style
   overlay_alpha: 0.45
   texto_color: "white"
-  resolucion: [1080, 1920]  # story Instagram
+  resolucion: [1080, 1920] # story Instagram
   # Directorio de fotos reales del bar (si existen, se usan en lugar de SDXL)
   fotos_reales_dir: "assets/fotos_reales"
 

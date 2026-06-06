@@ -10,15 +10,15 @@ recurrentes:
 
   - nombre: "Pintxopote del jueves"
     dia_semana: jueves
-    descripcion: "Pintxo + zurito a precio especial, tradición vasca"
+    descripcion: "Pintxo gratis con cada bebida el jueves"
     prioridad: alta
 
   - nombre: "Tortillas especiales"
     dia_semana: viernes
-    descripcion: "Tortilla especial del día, cambia cada semana"
+    descripcion: "Los viernes, tortillas de sabores especiales"
     prioridad: media
 
-  - nombre: "Vermú dominical"
+  - nombre: "Vermúteo del domingo"
     dia_semana: domingo
     descripcion: "Vermú y aperitivo para cerrar el fin de semana"
     prioridad: media
@@ -60,7 +60,8 @@ especiales:
 temporadas:
   - nombre: "Primavera"
     meses: [3, 4, 5]
-    cocteles_sugeridos: ["Aperol Spritz", "gin tonic con flores", "mojito de frutos rojos"]
+    cocteles_sugeridos:
+      ["Aperol Spritz", "gin tonic con flores", "mojito de frutos rojos"]
 
   - nombre: "Verano"
     meses: [6, 7, 8]
