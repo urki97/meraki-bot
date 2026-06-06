@@ -34,12 +34,18 @@ hashtags:
   nota: "naturales, no spam — integrados o al final del caption"
 
 imagen:
+  # Prompt base inspirado en el ambiente real del bar:
+  # neón rojo, barra oscura, iluminación cálida ambar/rojo, cocktails con guarnición
   estilo_prompt_base: >
-    dark atmospheric cocktail bar, warm amber lighting, moody editorial style,
-    bokeh background, no text, no people, cinematic, high quality
-  overlay_alpha: 0.45  # oscuridad del overlay sobre la imagen
+    cozy cocktail bar interior, red neon sign, warm amber and red lighting,
+    dark wood bar counter, bottles on shelves in background, bokeh background,
+    close-up cocktail with garnish, no text, no people, cinematic, photorealistic,
+    high quality, editorial photography style
+  overlay_alpha: 0.45
   texto_color: "white"
   resolucion: [1080, 1920]  # story Instagram
+  # Directorio de fotos reales del bar (si existen, se usan en lugar de SDXL)
+  fotos_reales_dir: "assets/fotos_reales"
 
 # ── Temáticas por día de la semana ───────────────────────────────────────────
 dias:
@@ -47,41 +53,55 @@ dias:
     tema: "inicio de semana"
     enfoque: "cócteles de temporada, arrancar la semana con energía"
     hashtag_variable: "#CoctelesDeTemporada"
-    prompt_imagen_extra: "seasonal cocktail, colorful garnish, close-up shot"
+    prompt_imagen_extra: >
+      tall cocktail glass with seasonal fruit garnish, mint, close-up on dark bar counter,
+      warm amber neon light, red bar background, bokeh bottles
 
   martes:
     tema: "novedades y promociones"
     enfoque: "novedades del bar, nuevas incorporaciones a la carta"
     hashtag_variable: "#NuevoEnMeraki"
-    prompt_imagen_extra: "cocktail menu, elegant presentation, dark wood bar"
+    prompt_imagen_extra: >
+      new cocktail presentation on dark wood bar, colorful drink with elaborate garnish,
+      red neon glow, bar shelves in background, moody lighting
 
   miercoles:
     tema: "Miércoles de mojitos"
     enfoque: "promoción fija e inamovible — mojitos a precio especial"
     hashtag_variable: "#MiercolesDelMojito"
-    prompt_imagen_extra: "mojito cocktail, mint leaves, lime, crushed ice, backlit"
+    prompt_imagen_extra: >
+      mojito cocktail with fresh mint leaves, lime wedge, striped straw, strawberry garnish,
+      tall glass, warm red neon bar background, dark counter, close-up bokeh
     promocion_fija: true
 
   jueves:
     tema: "pintxopote"
     enfoque: "pintxo + zurito a precio especial — tradición vasca"
     hashtag_variable: "#Pintxopote"
-    prompt_imagen_extra: "pintxos on bar counter, traditional basque food, warm light"
+    prompt_imagen_extra: >
+      traditional basque pintxos on dark bar counter, small glass of beer zurito,
+      warm cozy bar atmosphere, wooden counter, soft amber light
 
   viernes:
     tema: "tortillas especiales"
     enfoque: "tortillas especiales del día — plato estrella del viernes"
     hashtag_variable: "#TortillaDelDia"
-    prompt_imagen_extra: "spanish omelette, rustic plate, warm kitchen light"
+    prompt_imagen_extra: >
+      spanish tortilla omelette slice on rustic plate, warm kitchen light,
+      bar counter setting, cozy restaurant atmosphere, close-up food photography
 
   sabado:
     tema: "noche de cócteles"
     enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
     hashtag_variable: "#CoctelesDeAutor"
-    prompt_imagen_extra: "night bar atmosphere, signature cocktail, dim lights, elegant"
+    prompt_imagen_extra: >
+      signature cocktail close-up, dark moody bar at night, red neon reflections,
+      elaborate garnish, dark wood bar counter, bokeh bottle wall, dramatic lighting
 
   domingo:
     tema: "vermú dominical"
     enfoque: "vermú, cierre de semana, relax y buena compañía"
     hashtag_variable: "#VermuDominical"
-    prompt_imagen_extra: "vermouth glass, sunday brunch vibes, soft warm light, olives"
+    prompt_imagen_extra: >
+      vermouth glass with olive and orange slice, cozy bar afternoon light,
+      warm amber tones, dark counter, relaxed sunday atmosphere, soft bokeh
