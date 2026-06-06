@@ -37,12 +37,14 @@ hashtags:
 
 imagen:
   # Prompt base inspirado en el ambiente real del bar:
-  # neón rojo, barra oscura, iluminación cálida ambar/rojo, cocktails con guarnición
+  # techo de madera con Edison, papel tropical de hojas, barra de metal,
+  # neón MERAKI rojo, plantas, iluminación cálida
   estilo_prompt_base: >
-    cozy cocktail bar interior, red neon sign, warm amber and red lighting,
-    dark wood bar counter, bottles on shelves in background, bokeh background,
-    close-up cocktail with garnish, no text, no people, cinematic, photorealistic,
-    high quality, editorial photography style
+    cozy spanish cocktail bar interior, wooden ceiling with warm Edison bulbs,
+    tropical botanical leaf wallpaper grey and white, metal steel bar counter,
+    red neon bar sign glow, green plants ivy hanging, bottles on shelves background,
+    warm amber lighting, no text, no people, cinematic, photorealistic,
+    high quality, editorial food photography, shallow depth of field
   overlay_alpha: 0.45
   texto_color: "white"
   resolucion: [1080, 1920] # story Instagram
@@ -83,8 +85,8 @@ dias:
     enfoque: "promoción fija e inamovible — mojitos a precio especial (no mencionar precio ni marca)"
     hashtag_variable: "#MiercolesDelMojito"
     prompt_imagen_extra: >
-      mojito cocktail with fresh mint leaves, lime wedge, striped straw, strawberry garnish,
-      tall glass, warm red neon bar background, dark counter, close-up bokeh
+      mojito cocktail hero shot, tall glass with crushed ice, fresh mint, lime wedge,
+      striped straw, condensation, bokeh bar background, magazine quality
     promocion_fija: true
 
   jueves:
@@ -93,8 +95,8 @@ dias:
     enfoque: "pintxo + zurito a precio especial — tradición vasca"
     hashtag_variable: "#Pintxopote"
     prompt_imagen_extra: >
-      traditional basque pintxos on dark bar counter, small glass of beer zurito,
-      warm cozy bar atmosphere, wooden counter, soft amber light
+      basque pintxos on metal bar counter, mini sandwiches, small beer glass,
+      warm bar light, red neon bokeh, close-up food photography, appetizing
 
   viernes:
     publicar: true  # rotatorio — no siempre
@@ -102,8 +104,8 @@ dias:
     enfoque: "tortillas especiales del día — plato estrella del viernes"
     hashtag_variable: "#TortillaDelDia"
     prompt_imagen_extra: >
-      spanish tortilla omelette slice on rustic plate, warm kitchen light,
-      bar counter setting, cozy restaurant atmosphere, close-up food photography
+      golden spanish tortilla omelette slice on slate plate, herbs garnish,
+      metal bar counter, warm Edison glow, red neon bokeh, close-up food photography
 
   sabado:
     publicar: true  # siempre
@@ -111,8 +113,8 @@ dias:
     enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
     hashtag_variable: "#CoctelesDeAutor"
     prompt_imagen_extra: >
-      signature cocktail close-up, dark moody bar at night, red neon reflections,
-      elaborate garnish, dark wood bar counter, bokeh bottle wall, dramatic lighting
+      signature craft cocktail close-up, elaborate garnish, metal counter reflections,
+      red neon glow, moody dark atmosphere, dramatic lighting, luxury bar
 
   domingo:
     publicar: true  # siempre
@@ -120,5 +122,5 @@ dias:
     enfoque: "vermú, cierre de semana, relax y buena compañía"
     hashtag_variable: "#VermuDominical"
     prompt_imagen_extra: >
-      vermouth glass with olive and orange slice, cozy bar afternoon light,
-      warm amber tones, dark counter, relaxed sunday atmosphere, soft bokeh
+      vermouth glass with olive and orange slice, metal bar counter,
+      warm golden afternoon light, bokeh bottles background, relaxed elegant mood

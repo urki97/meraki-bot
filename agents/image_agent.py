@@ -17,11 +17,13 @@ logger = logging.getLogger("image_agent")
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "output"
 
-# Prompt base que se usa siempre como contexto visual del bar
+# Prompt base inspirado en el ambiente real del bar Meraki:
+# techo de madera, papel tropical de hojas, barra de metal, neón rojo MERAKI,
+# plantas, luces cálidas Edison, botellas en estantería
+# Prompt base acotado a ~30 tokens para dejar espacio al prompt del día (CLIP max 77)
 PROMPT_BASE = (
-    "cozy cocktail bar interior, red neon sign glow, warm amber and red lighting, "
-    "dark wood bar counter, bottles on shelves background, close-up cocktail with garnish, "
-    "no text, no people, cinematic, photorealistic, high quality, editorial photography"
+    "cozy bar interior, warm Edison bulbs, tropical leaf wallpaper, metal counter, "
+    "red neon glow, bottles background, no text, no people, photorealistic, editorial photography"
 )
 
 # Prompt negativo para evitar artefactos comunes
