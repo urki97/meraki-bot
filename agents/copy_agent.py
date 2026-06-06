@@ -38,36 +38,44 @@ def _construir_prompt(dia: dict, pautas: dict) -> str:
     if dia.get("evento_especial"):
         evento_info = f"Evento especial esta semana: {dia['evento_especial']}."
 
-    return f"""Eres el community manager de {bar['nombre']}, un bar de cócteles en {bar['direccion']}.
-Slogan: "{bar['slogan']}"
-Cuenta pequeña ({bar['seguidores']} seguidores) — tono cercano, como hablaría un amigo del barrio.
+    return f"""Eres el copywriter de un bar de cócteles en Bilbao. Tu trabajo es escribir copies de Instagram que tengan personalidad real — directos, con gancho, sin relleno.
 
-Escribe el caption para Instagram del {dia['dia_semana'].upper()}.
-
-Información del día:
-- Tema: {dia['tema']}
-- Enfoque: {dia['enfoque']}
-- Idea creativa: {dia['idea_creativa']}
-- Temporada: {dia['temporada']}
+Día: {dia['dia_semana'].upper()}
+Tema: {dia['tema']}
+Idea: {dia['idea_creativa']}
+Temporada: {dia['temporada']}
 {coctel_info}
 {evento_info}
 
-Reglas de tono (OBLIGATORIAS):
-- Evitar: {evitar}
-- NO menciones el nombre del bar ("Meraki") ni el barrio ("Santutxu") en el texto
-  — el logo ya identifica el bar, no hace falta repetirlo
-- Usar: {usar}
-- Mensaje sencillo y directo: máximo 2 frases, máximo 100 caracteres en total
-- Primera frase: impacto inmediato, que enganche en 2 segundos
-- Segunda frase: invitación concreta (ven, pásate, te esperamos…)
-- Máximo 3 hashtags al final: {hashtags_fijos} + {dia['hashtag_variable']}
-- En español siempre
-- Sin inventar precios, eventos ni características no confirmadas
+EJEMPLOS DE BUEN COPY (úsalos como referencia de tono y calidad):
+- "Los mojitos no se piden. Se necesitan."
+- "Hoy el miércoles tiene remedio. Tiene menta."
+- "Jueves. Pintxo. Zurito. En ese orden."
+- "La tortilla del viernes te espera desde el lunes."
+- "Hay semanas que solo se aguantan con un buen cóctel."
+- "No es un plan B. Es el mejor plan del jueves."
 
-Responde ÚNICAMENTE con este formato JSON exacto, sin texto adicional:
+LO QUE HACE UN BUEN COPY:
+✓ Primera frase: golpe de efecto en menos de 8 palabras
+✓ Segunda frase (opcional): concreta, invita a venir sin rogar
+✓ Voz activa, presente, tú directo
+✓ Máximo 2 frases — si puedes con una, mejor
+✓ Que suene a persona, no a post corporativo
+
+LO QUE NO DEBE APARECER:
+✗ El nombre del bar — el logo ya lo dice
+✗ El barrio — innecesario
+✗ Precios ni marcas de alcohol
+✗ Frases hechas tipo "os esperamos con los brazos abiertos"
+✗ Más de 100 caracteres en total
+✗ Emojis en exceso (máximo 1 si aporta)
+
+Hashtags (exactamente estos 3): {hashtags_fijos} {dia['hashtag_variable']}
+
+Responde ÚNICAMENTE con este JSON exacto, sin texto adicional:
 {{
-  "caption": "el texto del post aquí",
-  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3"]
+  "caption": "el copy aquí — corto, con gancho, sin relleno",
+  "hashtags": ["{dia['hashtag_variable']}", "{pautas['hashtags']['fijos'][0]}", "{pautas['hashtags']['fijos'][1]}"]
 }}"""
 
 

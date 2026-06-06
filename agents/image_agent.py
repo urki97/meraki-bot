@@ -23,7 +23,8 @@ OUTPUT_DIR = BASE_DIR / "output"
 # Prompt base acotado a ~30 tokens para dejar espacio al prompt del día (CLIP max 77)
 PROMPT_BASE = (
     "cozy bar interior, warm Edison bulbs, tropical leaf wallpaper, metal counter, "
-    "red neon glow, bottles background, no text, no people, photorealistic, editorial photography"
+    "red neon glow, bottles background, centered subject fully visible in frame, "
+    "no text, no people, photorealistic, editorial photography"
 )
 
 # Prompt negativo para evitar artefactos comunes
@@ -172,8 +173,8 @@ def generar_imagen(
                     negative_prompt=PROMPT_NEGATIVO,
                     num_inference_steps=num_steps,
                     guidance_scale=0.0,   # SDXL-Turbo funciona sin guidance
-                    width=1024,
-                    height=1024,
+                    width=576,
+                    height=1024,   # portrait 9:16 — evita crop lateral del sujeto en story
                 )
             imagen = resultado.images[0]
             imagen.save(output_path, "PNG")
