@@ -220,6 +220,15 @@ def publicar_story(dia: dict, image_url: str | None = None) -> dict:
     if _dry_run():
         logger.info(f"[DRY_RUN] Simulando publicación en {redes}")
 
+    # Si IG o FB están activas y no hay URL, subir imagen a Cloudinary
+    necesita_url = any(r in redes for r in ("instagram", "facebook"))
+    if necesita_url and not image_url and not _dry_run():
+        story_path = dia.get("story_path", "")
+        if story_path and Path(story_path).exists():
+            image_url = _subir_imagen_a_cdn(story_path)
+        else:
+            logger.error("No hay story_path disponible para subir a Cloudinary")
+
     if "instagram" in redes:
         try:
             resultados["instagram"] = publish_instagram(dia, image_url or "DRY_RUN_URL")
@@ -243,6 +252,41 @@ def publicar_story(dia: dict, image_url: str | None = None) -> dict:
             resultados["twitter"] = {"estado": "error", "error": str(e)}
 
     return resultados
+
+
+# ── Cloudinary CDN ───────────────────────────────────────────────────────────
+
+def _subir_imagen_a_cdn(image_path: str) -> str:
+    """
+    Sube la imagen a Cloudinary y devuelve la URL pública HTTPS.
+    Meta Graph API necesita una URL accesible para crear el container de IG/FB.
+
+    La imagen se guarda en la carpeta 'meraki/' de Cloudinary con el nombre
+    del fichero como public_id, para mantener orden y evitar duplicados.
+    """
+    import cloudinary
+    import cloudinary.uploader
+
+    cloudinary.config(
+        cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.getenv("CLOUDINARY_API_KEY"),
+        api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+        secure=True,
+    )
+
+    nombre = Path(image_path).stem  # ej. "2026-06-11_jueves_story"
+    logger.info(f"Subiendo imagen a Cloudinary: {nombre}")
+
+    resultado = cloudinary.uploader.upload(
+        image_path,
+        public_id=f"meraki/{nombre}",
+        overwrite=True,
+        resource_type="image",
+    )
+
+    url = resultado["secure_url"]
+    logger.info(f"Imagen disponible en: {url}")
+    return url
 
 
 # ── Helpers internos ──────────────────────────────────────────────────────────

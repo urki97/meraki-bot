@@ -31,3 +31,4 @@ requests
 tweepy
 rich
 pytest
+cloudinary
