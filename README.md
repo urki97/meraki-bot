@@ -1,47 +1,49 @@
 # meraki-bot
 
-Automatización de redes sociales para **Meraki Bar & Cocktails** (Bilbao).
+Bot de publicaciones automáticas para **Meraki Bar & Cocktails** — Bilbao.
 
-Cada lunes genera las publicaciones de la semana, las manda al móvil para aprobarlas y las publica en Instagram, Facebook y Twitter.
-
----
-
-## Cómo funciona
-
-El bot arranca cada lunes a las 9:00 y hace esto por cada día de la semana:
-
-1. Planifica el contenido según la temática del día (mojitos, pintxopote, tortillas...)
-2. Escribe el caption
-3. Genera la imagen de fondo con IA
-4. Monta la story (1080×1920) y el feed (1080×1080)
-5. Manda un preview al móvil vía Telegram con botón de publicar o regenerar
-6. Si no hay respuesta en 2 horas, publica solo
-
-El bar está cerrado lunes y martes. Los miércoles, jueves y viernes rotan cada semana para no saturar.
+Genera las stories y posts de la semana, los manda al móvil para dar el OK, y los sube a Instagram, Facebook y Twitter.
 
 ---
 
-## Tecnología
+## Qué hace
 
-- **Ollama + llama3.1:8b** — planificación y redacción de captions
-- **SDXL-Turbo** — generación de imágenes
-- **Pillow** — composición de stories y feeds
-- **Telegram Bot** — aprobación con botones inline
-- **Meta Graph API** — publicación en Instagram y Facebook
-- **Tweepy** — publicación en Twitter/X
-- **APScheduler** — cron semanal
+Cada lunes a las 9:00 el bot:
 
-> Ollama y SDXL no caben en VRAM al mismo tiempo. El pipeline los usa en secuencia.
+- Decide qué publicar cada día según la temática (mojitos los miércoles, pintxopote los jueves, tortillas los viernes, cócteles el sábado, vermú el domingo)
+- Escribe el caption con IA local (Ollama)
+- Genera la imagen con SDXL-Turbo
+- Monta la story (1080×1920) y el feed (1080×1080)
+- Manda un preview al Telegram del bar — se puede aprobar, rechazar o tocar qué redes usar
+- Si en 2 horas no hay respuesta, publica solo
+
+Lunes y martes el bar está cerrado, no publica nada. Miércoles, jueves y viernes rotan semanalmente para no saturar.
+
+---
+
+## Stack
+
+| Qué | Para qué |
+|-----|----------|
+| Ollama / llama3.1:8b | Planificación y captions |
+| SDXL-Turbo | Generación de imágenes |
+| Pillow | Composición de stories y feeds |
+| python-telegram-bot | Preview y aprobación |
+| Meta Graph API | Instagram + Facebook |
+| Tweepy | Twitter/X |
+| APScheduler | Cron semanal |
+
+Ollama y SDXL no caben en VRAM al mismo tiempo — el pipeline los usa en secuencia y libera memoria entre pasos.
 
 ---
 
 ## Requisitos
 
-- Ubuntu / WSL2, Python 3.14
-- GPU NVIDIA con 8 GB VRAM mínimo
-- Ollama corriendo localmente con llama3.1:8b
-- Bot de Telegram configurado
-- Credenciales de Meta Graph API y Twitter/X
+- Ubuntu / WSL2 con Python 3.14
+- GPU NVIDIA con al menos 8 GB VRAM
+- Ollama corriendo localmente con `llama3.1:8b`
+- Token de bot de Telegram
+- Credenciales Meta Graph API y Twitter/X (opcionales hasta producción)
 
 ---
 
@@ -56,7 +58,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# rellenar .env con los tokens
+# editar .env con los tokens
 ```
 
 ---
@@ -66,26 +68,24 @@ cp .env.example .env
 ```bash
 source .venv/bin/activate
 
-# Scheduler semanal (lunes 9:00)
+# Arranca el scheduler (cron lunes 9:00)
 python core/scheduler.py
 
-# Ejecutar ahora sin esperar al lunes
+# Forzar ejecución ahora mismo
 python core/scheduler.py --ahora
 
-# Generar preview de un día concreto
+# Preview de un día concreto (usa imagen cacheada si existe)
 python generar_preview.py miercoles
 python generar_preview.py jueves
 python generar_preview.py viernes
 
-# Tests (sin GPU ni credenciales)
+# Tests sin GPU ni credenciales
 python -m pytest tests/ -v
 ```
 
 ---
 
-## Configuración
-
-Copia `.env.example` a `.env` y rellena los valores:
+## Variables de entorno
 
 ```env
 TELEGRAM_BOT_TOKEN=
@@ -105,39 +105,15 @@ PUBLISH_INSTAGRAM=true
 PUBLISH_FACEBOOK=true
 PUBLISH_TWITTER=false
 
-DRY_RUN=true   # cambiar a false cuando esté todo listo
+DRY_RUN=true
+APPROVAL_WINDOW_HOURS=2
+MAX_REGENERATIONS=3
 ```
 
 ---
 
-## Estructura
+## Pendiente para producción
 
-```
-meraki-bot/
-├── agents/
-│   ├── planner.py       # plan semanal
-│   ├── copy_agent.py    # captions
-│   ├── image_agent.py   # imágenes con SDXL-Turbo
-│   └── compositor.py    # montaje story y feed
-├── core/
-│   ├── scheduler.py     # cron semanal
-│   ├── approval.py      # aprobación por Telegram
-│   └── publisher.py     # publicación multi-plataforma
-├── config/
-│   ├── pautas.yaml      # tono, temáticas, hashtags
-│   └── calendar.yaml    # eventos y temporadas
-└── assets/
-    ├── logo.png
-    └── fonts/
-```
-
----
-
-## Estado
-
-El bot está en desarrollo activo. DRY_RUN=true por defecto — no publica nada hasta configurar las credenciales.
-
-Pendiente antes de ir a producción:
-- Credenciales Meta Graph API (las gestiona el propietario del bar)
-- CDN para subir las imágenes antes de publicarlas en Instagram
-- Credenciales Twitter/X (opcional, PUBLISH_TWITTER=false por ahora)
+- Credenciales Meta Graph API (las tiene el propietario del bar)
+- CDN o bucket para alojar las imágenes antes de subirlas a Instagram
+- Credenciales Twitter/X si se quiere activar (`PUBLISH_TWITTER=false` por defecto)
