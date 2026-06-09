@@ -1,68 +1,62 @@
-# Meraki Bot
+# meraki-bot
 
-Bot de automatización de Instagram para **Meraki Bar & Cocktails** (@merakibilbao).  
-Genera publicaciones semanales con IA, las envía para aprobación vía Telegram y las publica automáticamente.
+Automatización de redes sociales para **Meraki Bar & Cocktails** (Bilbao).
+
+Cada lunes genera las publicaciones de la semana, las manda al móvil para aprobarlas y las publica en Instagram, Facebook y Twitter.
 
 ---
 
-## Qué hace
+## Cómo funciona
 
-Cada lunes a las 9:00 el bot:
+El bot arranca cada lunes a las 9:00 y hace esto por cada día de la semana:
 
-1. Genera un plan de 7 días consultando las pautas del bar
-2. Para cada día: crea el caption (Ollama), genera la imagen (SDXL-Turbo) y monta la story (Pillow)
-3. Envía un preview a Telegram con botones **✅ Publicar** / **❌ Regenerar**
-4. Si no hay respuesta en 2 horas → publica automáticamente
-5. Si se rechaza → regenera hasta 3 veces antes de descartar
+1. Planifica el contenido según la temática del día (mojitos, pintxopote, tortillas...)
+2. Escribe el caption
+3. Genera la imagen de fondo con IA
+4. Monta la story (1080×1920) y el feed (1080×1080)
+5. Manda un preview al móvil vía Telegram con botón de publicar o regenerar
+6. Si no hay respuesta en 2 horas, publica solo
+
+El bar está cerrado lunes y martes. Los miércoles, jueves y viernes rotan cada semana para no saturar.
+
+---
+
+## Tecnología
+
+- **Ollama + llama3.1:8b** — planificación y redacción de captions
+- **SDXL-Turbo** — generación de imágenes
+- **Pillow** — composición de stories y feeds
+- **Telegram Bot** — aprobación con botones inline
+- **Meta Graph API** — publicación en Instagram y Facebook
+- **Tweepy** — publicación en Twitter/X
+- **APScheduler** — cron semanal
+
+> Ollama y SDXL no caben en VRAM al mismo tiempo. El pipeline los usa en secuencia.
 
 ---
 
 ## Requisitos
 
-- Ubuntu / WSL2 con Python 3.12+
-- GPU NVIDIA con ≥8 GB VRAM (RTX 4060 o similar)
-- [Ollama](https://ollama.com) corriendo con `llama3.1:8b`
-- Bot de Telegram ([@BotFather](https://t.me/BotFather))
-- Credenciales de Meta Graph API (pendientes)
+- Ubuntu / WSL2, Python 3.14
+- GPU NVIDIA con 8 GB VRAM mínimo
+- Ollama corriendo localmente con llama3.1:8b
+- Bot de Telegram configurado
+- Credenciales de Meta Graph API y Twitter/X
 
 ---
 
 ## Instalación
 
 ```bash
-git clone <repo>
-cd meraki_bot
+git clone git@github.com:urki97/meraki-bot.git
+cd meraki-bot
 
-# Crear entorno virtual
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Instalar dependencias en orden correcto
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 
-# Configurar credenciales
 cp .env.example .env
-# Editar .env con tus tokens
-```
-
----
-
-## Configuración (.env)
-
-```env
-TELEGRAM_BOT_TOKEN=tu_token_aqui
-TELEGRAM_CHAT_ID=tu_chat_id_aqui
-
-IG_USER_ID=           # pendiente — Meta Graph API
-IG_ACCESS_TOKEN=      # pendiente — Meta Graph API
-
-DRY_RUN=true          # false cuando tengas credenciales de Instagram
-APPROVAL_WINDOW_HOURS=2
-MAX_REGENERATIONS=3
-
-OLLAMA_MODEL=llama3.1:8b
-SDXL_MODEL=stabilityai/sdxl-turbo
+# rellenar .env con los tokens
 ```
 
 ---
@@ -72,21 +66,46 @@ SDXL_MODEL=stabilityai/sdxl-turbo
 ```bash
 source .venv/bin/activate
 
-# Lanzar el scheduler (cron lunes 9:00)
+# Scheduler semanal (lunes 9:00)
 python core/scheduler.py
 
-# Ejecutar el pipeline ahora mismo (para pruebas)
+# Ejecutar ahora sin esperar al lunes
 python core/scheduler.py --ahora
 
-# Probar módulos por separado
-python agents/planner.py
-python agents/copy_agent.py
-python agents/image_agent.py
-python agents/compositor.py
-python core/publisher.py
+# Generar preview de un día concreto
+python generar_preview.py miercoles
+python generar_preview.py jueves
+python generar_preview.py viernes
 
-# Ejecutar tests (sin GPU ni credenciales)
+# Tests (sin GPU ni credenciales)
 python -m pytest tests/ -v
+```
+
+---
+
+## Configuración
+
+Copia `.env.example` a `.env` y rellena los valores:
+
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+IG_USER_ID=
+IG_ACCESS_TOKEN=
+FACEBOOK_PAGE_ID=
+
+TWITTER_API_KEY=
+TWITTER_API_SECRET=
+TWITTER_ACCESS_TOKEN=
+TWITTER_ACCESS_SECRET=
+TWITTER_BEARER_TOKEN=
+
+PUBLISH_INSTAGRAM=true
+PUBLISH_FACEBOOK=true
+PUBLISH_TWITTER=false
+
+DRY_RUN=true   # cambiar a false cuando esté todo listo
 ```
 
 ---
@@ -94,60 +113,31 @@ python -m pytest tests/ -v
 ## Estructura
 
 ```
-meraki_bot/
+meraki-bot/
 ├── agents/
-│   ├── planner.py       # plan semanal con Ollama
-│   ├── copy_agent.py    # caption + hashtags con Ollama
-│   ├── image_agent.py   # imagen base con SDXL-Turbo
-│   └── compositor.py    # story 1080x1920 con Pillow
+│   ├── planner.py       # plan semanal
+│   ├── copy_agent.py    # captions
+│   ├── image_agent.py   # imágenes con SDXL-Turbo
+│   └── compositor.py    # montaje story y feed
 ├── core/
-│   ├── scheduler.py     # cron semanal APScheduler
-│   ├── approval.py      # bot Telegram + lógica de aprobación
-│   └── publisher.py     # Meta Graph API (DRY_RUN por defecto)
+│   ├── scheduler.py     # cron semanal
+│   ├── approval.py      # aprobación por Telegram
+│   └── publisher.py     # publicación multi-plataforma
 ├── config/
-│   ├── pautas.yaml      # tono, temáticas y hashtags del bar
+│   ├── pautas.yaml      # tono, temáticas, hashtags
 │   └── calendar.yaml    # eventos y temporadas
-├── assets/
-│   └── logo.png         # logo placeholder (sustituir por el real)
-├── state/
-│   └── weekly_plan.json # estado persistente de la semana
-├── output/              # stories generadas
-└── logs/
-    └── bot.log          # log de operaciones
+└── assets/
+    ├── logo.png
+    └── fonts/
 ```
 
 ---
 
-## Gestión de VRAM (8 GB)
+## Estado
 
-Ollama y SDXL-Turbo **no pueden estar en VRAM al mismo tiempo**.  
-El pipeline los usa secuencialmente: primero genera el caption, libera VRAM, luego carga SDXL.
+El bot está en desarrollo activo. DRY_RUN=true por defecto — no publica nada hasta configurar las credenciales.
 
----
-
-## Activar publicación real
-
-Cuando tengas las credenciales de Meta:
-
-1. Añade `IG_USER_ID` y `IG_ACCESS_TOKEN` al `.env`
-2. Implementa la subida de imagen a un CDN en `core/publisher.py` (`_subir_imagen_a_cdn`)
-3. Cambia `DRY_RUN=false` en el `.env`
-
----
-
-## Logo
-
-Sustituye `assets/logo.png` por el logo real del bar (fondo transparente, formato PNG).  
-El compositor lo escala a 160px de ancho centrado en la parte inferior de la story.
-
----
-
-## Ramas Git
-
-| Rama | Uso |
-|------|-----|
-| `main` | Producción estable |
-| `develop` | Integración de features |
-| `feature/*` | Desarrollo de módulos |
-
-Los merges a `main` los decide el usuario.
+Pendiente antes de ir a producción:
+- Credenciales Meta Graph API (las gestiona el propietario del bar)
+- CDN para subir las imágenes antes de publicarlas en Instagram
+- Credenciales Twitter/X (opcional, PUBLISH_TWITTER=false por ahora)
