@@ -1,0 +1,21 @@
+# Servicio systemd del scheduler semanal (pipeline cada lunes 9:00)
+# Instalación:
+#   sudo cp deploy/meraki-scheduler.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now meraki-scheduler
+
+[Unit]
+Description=Meraki Bot - scheduler semanal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=urki
+WorkingDirectory=/home/urki/proyectos/meraki_bot
+ExecStart=/home/urki/proyectos/meraki_bot/.venv/bin/python core/scheduler.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

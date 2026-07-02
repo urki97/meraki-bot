@@ -1,0 +1,21 @@
+# Servicio systemd del bot de comandos de Telegram (/estado, /generar, /preview)
+# Instalación:
+#   sudo cp deploy/meraki-comandos.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now meraki-comandos
+
+[Unit]
+Description=Meraki Bot - comandos de Telegram
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=urki
+WorkingDirectory=/home/urki/proyectos/meraki_bot
+ExecStart=/home/urki/proyectos/meraki_bot/.venv/bin/python core/comandos.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
