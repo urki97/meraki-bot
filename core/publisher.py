@@ -251,6 +251,13 @@ def publicar_story(dia: dict, image_url: str | None = None) -> dict:
             logger.error(f"Error Twitter: {e}")
             resultados["twitter"] = {"estado": "error", "error": str(e)}
 
+    # Registrar en el historial para la anti-repetición de captions
+    try:
+        from core.historial import registrar_publicacion
+        registrar_publicacion(dia, resultados)
+    except Exception as e:
+        logger.warning(f"No se pudo registrar en historial: {e}")
+
     return resultados
 
 

@@ -30,6 +30,17 @@ def _construir_prompt(dia: dict, pautas: dict) -> str:
     evitar = ", ".join(tono["evitar"])
     usar = ", ".join(tono["usar"])
 
+    # Captions ya publicados — se prohíben para no repetirse semana a semana
+    previos_txt = ""
+    try:
+        from core.historial import captions_recientes
+        previos = captions_recientes(8)
+        if previos:
+            lista = "\n".join(f'- "{c}"' for c in previos)
+            previos_txt = f"\nCAPTIONS YA PUBLICADOS (prohibido repetir estas frases o ideas):\n{lista}\n"
+    except Exception:
+        pass  # sin historial no pasa nada — solo perdemos la anti-repetición
+
     coctel_info = ""
     if dia.get("cocteles_temporada"):
         coctel_info = f"Cócteles de temporada sugeridos: {', '.join(dia['cocteles_temporada'][:3])}."
@@ -70,6 +81,7 @@ LO QUE NO DEBE APARECER:
 ✗ Más de 100 caracteres en total
 ✗ Emojis en exceso (máximo 1 si aporta)
 
+{previos_txt}
 Hashtags (exactamente estos 3): {hashtags_fijos} {dia['hashtag_variable']}
 
 Responde ÚNICAMENTE con este JSON exacto, sin texto adicional:

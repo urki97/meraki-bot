@@ -146,6 +146,13 @@ def generar_imagen(
     logger.info(f"Generando imagen para {nombre_dia} ({fecha})")
     logger.info(f"Prompt: {prompt[:80]}...")
 
+    # Seed aleatoria en cada generación — así regenerar produce imágenes
+    # distintas y la seed queda guardada en el plan por si se quiere repetir
+    import random
+    seed = random.randint(0, 2**31 - 1)
+    dia["seed_imagen"] = seed
+    logger.info(f"Seed: {seed}")
+
     # Liberar VRAM antes de cargar SDXL (Ollama debe haber terminado ya)
     _liberar_vram()
 
@@ -167,6 +174,7 @@ def generar_imagen(
             pipe.enable_attention_slicing()
 
             logger.info("Generando imagen...")
+            generador = torch.Generator(device=dispositivo).manual_seed(seed)
             with torch.inference_mode():
                 resultado = pipe(
                     prompt=prompt,
@@ -175,6 +183,7 @@ def generar_imagen(
                     guidance_scale=0.0,   # SDXL-Turbo funciona sin guidance
                     width=576,
                     height=1024,   # portrait 9:16 — evita crop lateral del sujeto en story
+                    generator=generador,
                 )
             imagen = resultado.images[0]
             imagen.save(output_path, "PNG")
