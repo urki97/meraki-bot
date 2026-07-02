@@ -20,17 +20,22 @@ OUTPUT_DIR = BASE_DIR / "output"
 # Prompt base inspirado en el ambiente real del bar Meraki:
 # techo de madera, papel tropical de hojas, barra de metal, neón rojo MERAKI,
 # plantas, luces cálidas Edison, botellas en estantería
-# Prompt base acotado a ~30 tokens para dejar espacio al prompt del día (CLIP max 77)
+# Prompt base acotado a ~35 tokens para dejar espacio al prompt del día (CLIP max 77).
+# Clave anti-"look IA": foto casual de móvil con luz natural, NO editorial/magazine
+# (esos términos empujan hacia el acabado pulido artificial típico de SDXL)
 PROMPT_BASE = (
-    "cozy bar interior, warm Edison bulbs, tropical leaf wallpaper, metal counter, "
-    "red neon glow, bottles background, centered subject fully visible in frame, "
-    "no text, no people, photorealistic, editorial photography"
+    "candid photo taken with a phone inside a small cozy bar, dim warm light, "
+    "Edison bulbs, tropical leaf wallpaper, worn metal counter, natural muted colors, "
+    "centered subject fully in frame, no text, no people"
 )
 
-# Prompt negativo para evitar artefactos comunes
+# Prompt negativo reforzado contra el aspecto de render/CGI y texto inventado
+# (los carteles con letras sin sentido son el delator nº1 de imagen generada)
 PROMPT_NEGATIVO = (
-    "text, watermark, logo, people, faces, blurry, low quality, "
-    "cartoon, drawing, anime, oversaturated, nsfw"
+    "text, words, letters, signs, posters, menu board, labels with writing, "
+    "watermark, logo, people, faces, blurry, low quality, cartoon, anime, "
+    "3d render, cgi, illustration, painting, plastic, glossy, oversaturated, "
+    "studio lighting, product shot, hdr, perfect composition, nsfw"
 )
 
 
@@ -49,6 +54,43 @@ def _construir_prompt(dia: dict) -> str:
     if extra:
         return f"{PROMPT_BASE}, {extra}"
     return PROMPT_BASE
+
+
+def _post_procesar_realismo(path: Path, seed: int) -> None:
+    """
+    Disimula el acabado sintético de SDXL para que parezca foto de móvil:
+      - baja la saturación (SDXL satura de más)
+      - añade grano fotográfico sutil
+      - viñeta muy ligera en las esquinas
+
+    Se sobreescribe el fichero en el sitio.
+    """
+    import numpy as np
+    from PIL import Image, ImageEnhance
+
+    img = Image.open(path).convert("RGB")
+
+    # 1. Saturación y contraste ligeramente rebajados
+    img = ImageEnhance.Color(img).enhance(0.88)
+    img = ImageEnhance.Contrast(img).enhance(0.97)
+
+    arr = np.asarray(img).astype(np.int16)
+
+    # 2. Grano fotográfico (ruido gaussiano suave, reproducible con la seed)
+    rng = np.random.default_rng(seed)
+    grano = rng.normal(0, 5, arr.shape).astype(np.int16)
+    arr = arr + grano
+
+    # 3. Viñeta sutil: oscurece las esquinas un máximo de ~12%
+    h, w = arr.shape[:2]
+    ys = (np.linspace(-1, 1, h) ** 2)[:, None]
+    xs = (np.linspace(-1, 1, w) ** 2)[None, :]
+    vineta = 1.0 - 0.12 * np.clip(ys + xs - 0.4, 0, 1)
+    arr = arr * vineta[:, :, None]
+
+    resultado = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+    resultado.save(path, "PNG")
+    logger.info("Post-procesado de realismo aplicado (grano + saturación + viñeta)")
 
 
 def foto_real_disponible(dia: dict) -> Path | None:
@@ -188,6 +230,9 @@ def generar_imagen(
             imagen = resultado.images[0]
             imagen.save(output_path, "PNG")
             logger.info(f"Imagen guardada: {output_path}")
+
+            # Disimular el acabado sintético antes de componer
+            _post_procesar_realismo(output_path, seed)
 
             # Eliminar pipeline y liberar VRAM (fp16 no se mueve a CPU)
             del pipe
