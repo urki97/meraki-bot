@@ -74,13 +74,36 @@ python core/scheduler.py
 # Forzar ejecución ahora mismo
 python core/scheduler.py --ahora
 
+# Bot de comandos de Telegram (proceso aparte)
+python core/comandos.py
+
 # Preview de un día concreto (usa imagen cacheada si existe)
 python generar_preview.py miercoles
 python generar_preview.py jueves
 python generar_preview.py viernes
 
+# Comprobar configuración
+python core/config_check.py
+
 # Tests sin GPU ni credenciales
 python -m pytest tests/ -v
+```
+
+### Comandos de Telegram
+
+Con `core/comandos.py` corriendo, desde el chat del bar:
+
+- `/estado` — plan de la semana y últimas publicaciones
+- `/generar` — lanza el pipeline completo ahora
+- `/preview jueves` — genera el preview de un día
+- `/ayuda` — lista de comandos
+
+### Arranque automático (systemd)
+
+```bash
+sudo cp deploy/*.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now meraki-scheduler meraki-comandos
 ```
 
 ---
@@ -105,6 +128,10 @@ PUBLISH_INSTAGRAM=true
 PUBLISH_FACEBOOK=true
 PUBLISH_TWITTER=false
 
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
 DRY_RUN=true
 APPROVAL_WINDOW_HOURS=2
 MAX_REGENERATIONS=3
@@ -112,8 +139,17 @@ MAX_REGENERATIONS=3
 
 ---
 
+## Detalles de funcionamiento
+
+- **Anti-repetición**: los captions publicados quedan en `state/historial.json` y se pasan al modelo como prohibidos — no se repite la misma frase semana a semana.
+- **Variedad de imagen**: cada generación usa una seed aleatoria (guardada en el plan); al regenerar desde Telegram la imagen sale distinta.
+- **Cloudinary**: antes de publicar en IG/FB la imagen se sube automáticamente y se usa su URL pública (Meta lo exige).
+- **Validación al arrancar**: `config_check` revisa `.env` y ficheros; en producción (`DRY_RUN=false`) los errores bloquean el pipeline, en pruebas solo avisan.
+- **Mantenimiento**: las imágenes de `output/` con más de 30 días se borran solas; los logs rotan a los 5 MB.
+
+---
+
 ## Pendiente para producción
 
 - Credenciales Meta Graph API (las tiene el propietario del bar)
-- CDN o bucket para alojar las imágenes antes de subirlas a Instagram
 - Credenciales Twitter/X si se quiere activar (`PUBLISH_TWITTER=false` por defecto)
