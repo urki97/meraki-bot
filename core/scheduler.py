@@ -18,13 +18,19 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-logging.basicConfig(
-    filename=BASE_DIR / "logs" / "bot.log",
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-    level=logging.INFO,
+# Logging a fichero con rotación (5 MB × 3 backups) + consola
+from logging.handlers import RotatingFileHandler
+
+(BASE_DIR / "logs").mkdir(exist_ok=True)
+_formato = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s")
+_fichero = RotatingFileHandler(
+    BASE_DIR / "logs" / "bot.log", maxBytes=5 * 1024 * 1024, backupCount=3,
+    encoding="utf-8",
 )
-# También mostrar en consola
-logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+_fichero.setFormatter(_formato)
+_consola = logging.StreamHandler(sys.stdout)
+_consola.setFormatter(_formato)
+logging.basicConfig(level=logging.INFO, handlers=[_fichero, _consola])
 logger = logging.getLogger("scheduler")
 
 STATE_FILE = BASE_DIR / "state" / "weekly_plan.json"
@@ -99,6 +105,27 @@ def _cargar_plan() -> dict | None:
     return None
 
 
+def limpiar_output_antiguo(dias: int = 30) -> int:
+    """
+    Borra imágenes de output/ con más de `dias` días de antigüedad.
+    Devuelve el número de ficheros eliminados.
+    """
+    import time
+    output_dir = BASE_DIR / "output"
+    if not output_dir.exists():
+        return 0
+
+    limite = time.time() - dias * 86400
+    borrados = 0
+    for f in output_dir.iterdir():
+        if f.suffix.lower() in (".png", ".jpg", ".jpeg") and f.stat().st_mtime < limite:
+            f.unlink()
+            borrados += 1
+    if borrados:
+        logger.info(f"Limpieza: {borrados} imágenes con más de {dias} días eliminadas")
+    return borrados
+
+
 def pipeline_semanal() -> None:
     """
     Pipeline principal: se ejecuta cada lunes a las 9:00.
@@ -106,11 +133,21 @@ def pipeline_semanal() -> None:
     """
     from agents.planner import generar_plan_semanal
     from core.approval import enviar_para_aprobacion
+    from core.config_check import comprobar_todo
 
     modelo_ollama = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     modelo_sdxl = os.getenv("SDXL_MODEL", "stabilityai/sdxl-turbo")
 
     logger.info("══ Inicio pipeline semanal ══")
+
+    # Validar configuración — los errores bloquean, los avisos no
+    config = comprobar_todo()
+    if not config["ok"]:
+        logger.error("Configuración inválida — pipeline abortado. Revisar .env")
+        return
+
+    # Mantenimiento: borrar imágenes de hace más de un mes
+    limpiar_output_antiguo(dias=30)
 
     # Cargar plan existente o generar uno nuevo
     plan = _cargar_plan()
