@@ -87,8 +87,8 @@ dias:
     enfoque: "promoción fija e inamovible — mojitos a precio especial (no mencionar precio ni marca)"
     hashtag_variable: "#MiercolesDelMojito"
     prompt_imagen_extra: >
-      mojito cocktail hero shot, tall glass with crushed ice, fresh mint, lime wedge,
-      striped straw, condensation, bokeh bar background, magazine quality
+      a mojito on the bar counter, tall glass with crushed ice, fresh mint,
+      lime wedge, condensation on the glass, blurred bar background
     promocion_fija: true
 
   jueves:
@@ -97,8 +97,8 @@ dias:
     enfoque: "pintxo + zurito a precio especial — tradición vasca"
     hashtag_variable: "#Pintxopote"
     prompt_imagen_extra: >
-      basque pintxos on metal bar counter, mini sandwiches, small beer glass,
-      warm bar light, red neon bokeh, close-up food photography, appetizing
+      a tray of assorted basque pintxos on the bar, mini sandwiches on sticks,
+      small glass of beer next to them, blurred bar background
 
   viernes:
     publicar: true  # rotatorio — no siempre
@@ -106,8 +106,8 @@ dias:
     enfoque: "tortillas especiales del día — plato estrella del viernes"
     hashtag_variable: "#TortillaDelDia"
     prompt_imagen_extra: >
-      golden spanish tortilla omelette slice on slate plate, herbs garnish,
-      metal bar counter, warm Edison glow, red neon bokeh, close-up food photography
+      a slice of golden spanish tortilla on a small plate on the bar,
+      fork beside it, crumbs, blurred bottles in the background
 
   sabado:
     publicar: true  # siempre
@@ -115,8 +115,8 @@ dias:
     enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
     hashtag_variable: "#CoctelesDeAutor"
     prompt_imagen_extra: >
-      signature craft cocktail close-up, elaborate garnish, metal counter reflections,
-      red neon glow, moody dark atmosphere, dramatic lighting, luxury bar
+      a craft cocktail with garnish on the bar at night, red neon reflections
+      on the counter, dark moody atmosphere, blurred background
 
   domingo:
     publicar: true  # siempre
@@ -124,5 +124,5 @@ dias:
     enfoque: "vermú, cierre de semana, relax y buena compañía"
     hashtag_variable: "#VermuDominical"
     prompt_imagen_extra: >
-      vermouth glass with olive and orange slice, metal bar counter,
-      warm golden afternoon light, bokeh bottles background, relaxed elegant mood
+      a glass of vermouth with an olive and orange slice on the bar,
+      warm afternoon light through the window, blurred bottles behind

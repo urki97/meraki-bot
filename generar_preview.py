@@ -14,56 +14,47 @@ BASE_DIR = Path(__file__).parent
 # Día a previsualizar: "miercoles", "jueves" o "viernes"
 DIA = sys.argv[1] if len(sys.argv) > 1 else "jueves"
 
-dias_config = {
+# Los prompts de imagen y temas se leen de pautas.yaml — así el preview
+# prueba siempre la configuración real, sin duplicados que se desincronicen
+import yaml
+
+with open(BASE_DIR / "config" / "pautas.yaml", encoding="utf-8") as f:
+    _pautas = yaml.safe_load(f)
+
+_fechas_preview = {"miercoles": "2026-06-10", "jueves": "2026-06-11", "viernes": "2026-06-12"}
+_extra_preview = {
     "miercoles": {
-        "fecha": "2026-06-10",
-        "dia_semana": "miercoles",
-        "tema": "Miércoles de mojitos",
-        "enfoque": "promoción fija — mojitos a precio especial (no mencionar precio ni marca)",
         "idea_creativa": "El miércoles es de mojito. Sin discusión.",
         "titulo": "Miércoles de Mojitos",
-        "hashtag_variable": "#MiercolesDelMojito",
-        "temporada": "Verano",
         "cocteles_temporada": ["mojito clásico", "mojito de frutos rojos"],
-        "evento_especial": None,
-        "prompt_imagen_extra": (
-            "mojito cocktail hero shot, tall glass with crushed ice, fresh mint, lime wedge, "
-            "striped straw, condensation, bokeh bar background, magazine quality"
-        ),
     },
     "jueves": {
-        "fecha": "2026-06-11",
-        "dia_semana": "jueves",
-        "tema": "pintxopote",
-        "enfoque": "pintxo + zurito a precio especial — tradición vasca",
         "idea_creativa": "Jueves de pintxopote en Santutxu. La tradición manda.",
         "titulo": "Pintxopote",
-        "hashtag_variable": "#Pintxopote",
-        "temporada": "Verano",
         "cocteles_temporada": ["zurito", "caña"],
-        "evento_especial": None,
-        "prompt_imagen_extra": (
-            "basque pintxos on metal bar counter, mini sandwiches, small beer glass, "
-            "warm bar light, red neon bokeh, close-up food photography, appetizing"
-        ),
     },
     "viernes": {
-        "fecha": "2026-06-12",
-        "dia_semana": "viernes",
-        "tema": "tortillas especiales",
-        "enfoque": "tortillas especiales del día — plato estrella del viernes",
         "idea_creativa": "Viernes de tortilla. La nuestra no se parece a ninguna otra.",
         "titulo": "Tortilla del Día",
-        "hashtag_variable": "#TortillaDelDia",
-        "temporada": "Verano",
         "cocteles_temporada": [],
-        "evento_especial": None,
-        "prompt_imagen_extra": (
-            "golden spanish tortilla omelette slice on slate plate, herbs garnish, "
-            "metal bar counter, warm Edison glow, red neon bokeh, close-up food photography"
-        ),
     },
 }
+
+dias_config = {}
+for _dia, _cfg in _pautas["dias"].items():
+    if _dia not in _fechas_preview:
+        continue
+    dias_config[_dia] = {
+        "fecha": _fechas_preview[_dia],
+        "dia_semana": _dia,
+        "tema": _cfg["tema"],
+        "enfoque": _cfg["enfoque"],
+        "hashtag_variable": _cfg["hashtag_variable"],
+        "prompt_imagen_extra": _cfg.get("prompt_imagen_extra", ""),
+        "temporada": "Verano",
+        "evento_especial": None,
+        **_extra_preview[_dia],
+    }
 
 # Captions fijos de referencia por día (estilo aprobado por el bar)
 captions_referencia = {
