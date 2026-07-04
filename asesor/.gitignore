@@ -1,0 +1,10 @@
+# Credenciales: nunca al repo
+.env
+
+# Base de datos (persiste en el volumen, no en git)
+data/*
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,20 @@
+services:
+  asesor:
+    build: .
+    container_name: asesor
+    env_file: .env
+    volumes:
+      - ./data:/app/data          # la BD SQLite sobrevive a rebuilds del contenedor
+      - ./prompts:/app/prompts    # edita sistema.md en caliente, sin rebuild
+      - whisper-cache:/root/.cache  # los ~3GB del modelo Whisper se descargan una sola vez
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  whisper-cache:
