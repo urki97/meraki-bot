@@ -43,8 +43,9 @@ BLANCO_SUAVE = (240, 235, 225, 235)
 def _fuente(tamanyo: int, display: bool = False, italic: bool = False) -> ImageFont.FreeTypeFont:
     """Carga la fuente adecuada según el rol."""
     if display:
-        # Poppins Bold: geométrica, moderna, elegante — no agresiva
+        # Playfair Display: serif elegante, estética clásica de coctelería
         candidatos = [
+            FONTS_DIR / "PlayfairDisplay-ExtraBold.ttf",
             FONTS_DIR / "Poppins-Bold.ttf",
             FONTS_DIR / "Montserrat-Bold.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
@@ -82,6 +83,36 @@ def _escalar_recortar(img: Image.Image, w: int, h: int) -> Image.Image:
     left = (nuevo_w - w) // 2
     top  = (nuevo_h - h) // 2
     return img.crop((left, top, left + w, top + h))
+
+
+def _analizar_fondo(img: Image.Image, y0: int, y1: int) -> tuple[float, tuple]:
+    """
+    Analiza la zona de la imagen donde irá el texto.
+    Devuelve (brillo 0-1, color_acento):
+      - brillo: para ajustar la fuerza del gradiente (fondo claro → más gradiente)
+      - color_acento: el color vivo dominante de la foto, aclarado a pastel
+        para usarlo en la tagline y que el diseño 'herede' la paleta de la imagen
+    """
+    import numpy as np
+
+    zona = img.crop((0, y0, img.width, y1)).convert("RGB").resize((64, 32))
+    arr = np.asarray(zona).astype(float)
+    brillo = float(arr.mean() / 255.0)
+
+    # Acento: media de los píxeles con saturación alta (colores vivos de la foto)
+    mx = arr.max(axis=2)
+    mn = arr.min(axis=2)
+    sat = (mx - mn) / (mx + 1e-5)
+    vivos = (sat > 0.35) & (mx > 70)
+    if vivos.sum() >= 20:
+        acento = arr[vivos].mean(axis=0)
+    else:
+        acento = np.array([210.0, 170.0, 80.0])   # dorado Meraki por defecto
+
+    # Normalizar y aclarar a pastel — tiene que leerse sobre gradiente oscuro
+    acento = acento / max(float(acento.max()), 1.0) * 255.0
+    acento = 0.5 * acento + 0.5 * 255.0
+    return brillo, tuple(int(c) for c in acento)
 
 
 def _gradiente_vertical(canvas: Image.Image, y0: int, y1: int,
@@ -169,9 +200,12 @@ def montar_story(
     base = Image.open(image_path).convert("RGBA")
     base = _escalar_recortar(base, W, H)
 
-    # 2. Gradiente inferior muy suave (último 38%) — foto visible siempre
+    # 2. Analizar la zona del texto: fuerza del gradiente según brillo del fondo
+    #    y color de acento extraído de la propia foto
     grad_inicio = int(H * 0.62)
-    _gradiente_vertical(base, grad_inicio, H, 0, 160)
+    brillo, color_acento = _analizar_fondo(base, grad_inicio, H)
+    alpha_gradiente = int(150 + brillo * 70)   # fondo oscuro ~150, claro ~220
+    _gradiente_vertical(base, grad_inicio, H, 0, alpha_gradiente)
 
     # 3. Gradiente mínimo superior (solo 12%) — para que el logo sea legible
     _gradiente_vertical(base, 0, int(H * 0.12), 90, 0)
@@ -210,10 +244,11 @@ def montar_story(
 
     y += 18  # separación entre título y tagline
 
-    # 7. Tagline en máx 2 líneas — sin truncar con "…"
+    # 7. Tagline en máx 2 líneas, en el color de acento de la foto
+    color_tagline = (*color_acento, 240)
     for linea in lineas_tagline:
         x = _centrar_x(linea, fuente_tagline, W)
-        _texto_sombra(draw, linea, x, y, fuente_tagline, color=BLANCO_SUAVE)
+        _texto_sombra(draw, linea, x, y, fuente_tagline, color=color_tagline)
         y += _altura_texto(linea, fuente_tagline) + 10
 
     # 8. Guardar
@@ -254,8 +289,10 @@ def montar_feed(
     base = Image.open(image_path).convert("RGBA")
     base = _escalar_recortar(base, W, H)
 
-    # Gradiente inferior (40%) y superior mínimo (8%)
-    _gradiente_vertical(base, int(H * 0.60), H, 0, 155)
+    # Gradiente adaptativo según brillo + acento de color de la foto
+    grad_inicio = int(H * 0.60)
+    brillo, color_acento = _analizar_fondo(base, grad_inicio, H)
+    _gradiente_vertical(base, grad_inicio, H, 0, int(145 + brillo * 70))
     _gradiente_vertical(base, 0, int(H * 0.08), 80, 0)
 
     draw = ImageDraw.Draw(base)
@@ -278,11 +315,12 @@ def montar_feed(
 
     y += 14
 
-    # Tagline en máx 2 líneas — sin truncar con "…"
+    # Tagline en máx 2 líneas, en el color de acento de la foto
     primera_frase = caption.split(".")[0].strip()
+    color_tagline = (*color_acento, 240)
     for linea in textwrap.wrap(primera_frase, width=32)[:2]:
         x = _centrar_x(linea, fuente_tagline, W)
-        _texto_sombra(draw, linea, x, y, fuente_tagline, color=BLANCO_SUAVE)
+        _texto_sombra(draw, linea, x, y, fuente_tagline, color=color_tagline)
         y += _altura_texto(linea, fuente_tagline) + 8
 
     base.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
