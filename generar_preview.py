@@ -51,6 +51,8 @@ for _dia, _cfg in _pautas["dias"].items():
         "enfoque": _cfg["enfoque"],
         "hashtag_variable": _cfg["hashtag_variable"],
         "prompt_imagen_extra": _cfg.get("prompt_imagen_extra", ""),
+        "titulo_script": _cfg.get("titulo_script"),
+        "titulo_grande": _cfg.get("titulo_grande"),
         "temporada": "Verano",
         "evento_especial": None,
         **_extra_preview[_dia],
@@ -100,6 +102,8 @@ rutas = montar_ambos(
     fecha=dia["fecha"],
     dia_semana=DIA,
     titulo=dia["titulo"],
+    titulo_script=dia.get("titulo_script"),
+    titulo_grande=dia.get("titulo_grande"),
 )
 print("Story:", rutas["story"])
 print("Feed :", rutas["feed"])

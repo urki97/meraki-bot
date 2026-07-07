@@ -83,6 +83,8 @@ dias:
 
   miercoles:
     publicar: true  # rotatorio — no siempre
+    titulo_script: "Miércoles de"
+    titulo_grande: "Mojitos"
     tema: "Miércoles de mojitos"
     enfoque: "promoción fija e inamovible — mojitos a precio especial (no mencionar precio ni marca)"
     hashtag_variable: "#MiercolesDelMojito"
@@ -93,6 +95,8 @@ dias:
 
   jueves:
     publicar: true  # rotatorio — no siempre
+    titulo_script: "Jueves de"
+    titulo_grande: "Pintxopote"
     tema: "pintxopote"
     enfoque: "pintxo + zurito a precio especial — tradición vasca"
     hashtag_variable: "#Pintxopote"
@@ -102,6 +106,8 @@ dias:
 
   viernes:
     publicar: true  # rotatorio — no siempre
+    titulo_script: "Viernes de"
+    titulo_grande: "Tortillas"
     tema: "tortillas especiales"
     enfoque: "tortillas especiales del día — plato estrella del viernes"
     hashtag_variable: "#TortillaDelDia"
@@ -111,6 +117,8 @@ dias:
 
   sabado:
     publicar: true  # siempre
+    titulo_script: "Noche de"
+    titulo_grande: "Cócteles"
     tema: "noche de cócteles"
     enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
     hashtag_variable: "#CoctelesDeAutor"
@@ -120,6 +128,8 @@ dias:
 
   domingo:
     publicar: true  # siempre
+    titulo_script: "Domingo de"
+    titulo_grande: "Vermú"
     tema: "vermú dominical"
     enfoque: "vermú, cierre de semana, relax y buena compañía"
     hashtag_variable: "#VermuDominical"

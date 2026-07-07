@@ -1,17 +1,20 @@
 """
-Compositor v4: story y feed con composición profesional de Instagram.
+Compositor v6: diseño editorial de coctelería, al estilo de las plantillas
+profesionales de hostelería (serif + script, marco fino, ornamentos, footer).
 
-Principios aplicados:
-  - Safe zones IG: evitar top/bottom 250px (zona de UI de la app)
-  - Texto ≤1/5 de la imagen — sin abarrotar
-  - Sin hashtags en la imagen (van en el caption del post)
-  - Sin líneas decorativas — limpieza visual
-  - Dos bloques máx: título grande + tagline corta (1 línea)
-  - Logo circular pequeño en zona superior segura
-  - Gradiente MUY suave — la foto se ve siempre
-  - Dos formatos:
-      story: 1080x1920 (Instagram/Facebook Stories)
-      feed:  1080x1080 (Instagram/Facebook Feed, Twitter)
+Elementos del layout:
+  - Marco fino dorado alrededor de toda la pieza
+  - Logo circular centrado arriba
+  - Título en dos niveles: línea script manuscrita ("Miércoles de")
+    + palabra grande en serif con tracking ("MOJITOS")
+  - Ornamento divisor: línea — rombo — línea
+  - Tagline corta en el color de acento extraído de la foto
+  - Footer con @usuario y barrio en versalitas espaciadas
+  - Gradiente adaptativo según el brillo del fondo
+
+Formatos:
+  story: 1080x1920 (Instagram/Facebook Stories)
+  feed:  1080x1080 (Instagram/Facebook Feed, Twitter)
 """
 
 import logging
@@ -31,23 +34,30 @@ OUTPUT_DIR = BASE_DIR / "output"
 STORY_W, STORY_H = 1080, 1920
 FEED_W,  FEED_H  = 1080, 1080
 
-# Safe zones Instagram (pixeles a respetar)
-STORY_SAFE_TOP    = 260   # zona de avatar + X
-STORY_SAFE_BOTTOM = 250   # zona de respuesta
-
 # Colores
 BLANCO       = (255, 255, 255, 255)
 BLANCO_SUAVE = (240, 235, 225, 235)
+DORADO       = (212, 175, 100, 255)
+DORADO_SUAVE = (212, 175, 100, 150)
+FOOTER_COLOR = (225, 218, 205, 210)
+
+# Marca (footer)
+HANDLE = "@MERAKIBILBAO"
+BARRIO = "SANTUTXU · BILBAO"
 
 
-def _fuente(tamanyo: int, display: bool = False, italic: bool = False) -> ImageFont.FreeTypeFont:
+def _fuente(tamanyo: int, display: bool = False, script: bool = False,
+            italic: bool = False) -> ImageFont.FreeTypeFont:
     """Carga la fuente adecuada según el rol."""
-    if display:
-        # Playfair Display: serif elegante, estética clásica de coctelería
+    if script:
+        # Great Vibes: manuscrita elegante para la línea introductoria
+        candidatos = [FONTS_DIR / "GreatVibes-Regular.ttf",
+                      FONTS_DIR / "Montserrat-LightItalic.ttf"]
+    elif display:
+        # Playfair Display: serif de coctelería para la palabra protagonista
         candidatos = [
             FONTS_DIR / "PlayfairDisplay-ExtraBold.ttf",
             FONTS_DIR / "Poppins-Bold.ttf",
-            FONTS_DIR / "Montserrat-Bold.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
         ]
     elif italic:
@@ -57,6 +67,7 @@ def _fuente(tamanyo: int, display: bool = False, italic: bool = False) -> ImageF
         ]
     else:
         candidatos = [
+            FONTS_DIR / "Poppins-SemiBold.ttf",
             FONTS_DIR / "Montserrat-Regular.ttf",
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
         ]
@@ -87,11 +98,8 @@ def _escalar_recortar(img: Image.Image, w: int, h: int) -> Image.Image:
 
 def _analizar_fondo(img: Image.Image, y0: int, y1: int) -> tuple[float, tuple]:
     """
-    Analiza la zona de la imagen donde irá el texto.
-    Devuelve (brillo 0-1, color_acento):
-      - brillo: para ajustar la fuerza del gradiente (fondo claro → más gradiente)
-      - color_acento: el color vivo dominante de la foto, aclarado a pastel
-        para usarlo en la tagline y que el diseño 'herede' la paleta de la imagen
+    Analiza la zona donde irá el texto.
+    Devuelve (brillo 0-1, color_acento pastel extraído de la foto).
     """
     import numpy as np
 
@@ -99,7 +107,6 @@ def _analizar_fondo(img: Image.Image, y0: int, y1: int) -> tuple[float, tuple]:
     arr = np.asarray(zona).astype(float)
     brillo = float(arr.mean() / 255.0)
 
-    # Acento: media de los píxeles con saturación alta (colores vivos de la foto)
     mx = arr.max(axis=2)
     mn = arr.min(axis=2)
     sat = (mx - mn) / (mx + 1e-5)
@@ -107,9 +114,8 @@ def _analizar_fondo(img: Image.Image, y0: int, y1: int) -> tuple[float, tuple]:
     if vivos.sum() >= 20:
         acento = arr[vivos].mean(axis=0)
     else:
-        acento = np.array([210.0, 170.0, 80.0])   # dorado Meraki por defecto
+        acento = np.array([212.0, 175.0, 100.0])   # dorado Meraki
 
-    # Normalizar y aclarar a pastel — tiene que leerse sobre gradiente oscuro
     acento = acento / max(float(acento.max()), 1.0) * 255.0
     acento = 0.5 * acento + 0.5 * 255.0
     return brillo, tuple(int(c) for c in acento)
@@ -118,7 +124,7 @@ def _analizar_fondo(img: Image.Image, y0: int, y1: int) -> tuple[float, tuple]:
 def _gradiente_vertical(canvas: Image.Image, y0: int, y1: int,
                          alpha_inicio: int, alpha_fin: int,
                          color_rgb: tuple = (0, 0, 0)) -> None:
-    """Gradiente muy suave — la foto se ve a través."""
+    """Gradiente vertical — la foto se ve a través."""
     h = y1 - y0
     for i in range(h):
         t = i / max(h - 1, 1)
@@ -127,15 +133,21 @@ def _gradiente_vertical(canvas: Image.Image, y0: int, y1: int,
         canvas.paste(franja, (0, y0 + i), franja)
 
 
+def _marco(canvas: Image.Image, inset: int = 28, color=DORADO_SUAVE, grosor: int = 2) -> None:
+    """Marco fino elegante alrededor de toda la pieza."""
+    draw = ImageDraw.Draw(canvas)
+    w, h = canvas.size
+    draw.rectangle([inset, inset, w - inset, h - inset], outline=color, width=grosor)
+
+
 def _logo_circular(canvas: Image.Image, logo_path: Path, diametro: int, x: int, y: int) -> None:
-    """Pega el logo recortado en círculo con fondo semitransparente."""
+    """Logo recortado en círculo con fondo semitransparente."""
     if not logo_path.exists():
         logger.warning(f"Logo no encontrado: {logo_path}")
         return
     logo = Image.open(logo_path).convert("RGBA")
     logo = logo.resize((diametro, diametro), Image.LANCZOS)
 
-    # Fondo circular oscuro (contraste sobre cualquier fondo de foto)
     fondo = Image.new("RGBA", (diametro, diametro), (0, 0, 0, 0))
     mascara = Image.new("L", (diametro, diametro), 0)
     ImageDraw.Draw(mascara).ellipse([0, 0, diametro - 1, diametro - 1], fill=255)
@@ -146,23 +158,75 @@ def _logo_circular(canvas: Image.Image, logo_path: Path, diametro: int, x: int, 
 
 def _texto_sombra(draw: ImageDraw.Draw, texto: str, x: int, y: int,
                    fuente, color=BLANCO) -> None:
-    """Dibuja texto con sombra difusa para legibilidad sin overlay."""
-    # Sombra en múltiples offsets para efecto difuso
+    """Texto con sombra difusa para legibilidad sobre foto."""
     for dx, dy in [(2, 2), (3, 3), (-1, 2), (2, -1)]:
         draw.text((x + dx, y + dy), texto, font=fuente, fill=(0, 0, 0, 120))
     draw.text((x, y), texto, font=fuente, fill=color)
 
 
-def _centrar_x(texto: str, fuente, ancho: int) -> int:
-    """Devuelve la X para centrar el texto dado en el ancho indicado."""
-    bbox = fuente.getbbox(texto)
-    return (ancho - (bbox[2] - bbox[0])) // 2
+def _ancho_texto(draw: ImageDraw.Draw, texto: str, fuente, tracking: int = 0) -> float:
+    """Ancho total del texto incluyendo tracking entre caracteres."""
+    return draw.textlength(texto, font=fuente) + tracking * max(len(texto) - 1, 0)
+
+
+def _texto_espaciado(draw: ImageDraw.Draw, texto: str, y: int, fuente,
+                      ancho_max: int, tracking: int = 0, color=BLANCO,
+                      sombra: bool = True) -> None:
+    """Texto centrado con espaciado entre caracteres (tracking)."""
+    total = _ancho_texto(draw, texto, fuente, tracking)
+    x = (ancho_max - total) / 2
+    for ch in texto:
+        if sombra:
+            for dx, dy in [(2, 2), (3, 3)]:
+                draw.text((x + dx, y + dy), ch, font=fuente, fill=(0, 0, 0, 130))
+        draw.text((x, y), ch, font=fuente, fill=color)
+        x += draw.textlength(ch, font=fuente) + tracking
+
+
+def _fuente_ajustada(draw: ImageDraw.Draw, texto: str, ancho_max: int,
+                      tamanyo_max: int, tracking: int = 0,
+                      display: bool = True) -> ImageFont.FreeTypeFont:
+    """Devuelve la fuente display más grande que quepa en ancho_max."""
+    tamanyo = tamanyo_max
+    while tamanyo > 40:
+        fuente = _fuente(tamanyo, display=display)
+        if _ancho_texto(draw, texto, fuente, tracking) <= ancho_max:
+            return fuente
+        tamanyo -= 6
+    return _fuente(40, display=display)
+
+
+def _ornamento(canvas: Image.Image, y: int, ancho: int, largo: int = 130) -> None:
+    """Divisor decorativo: línea — rombo — línea, en dorado."""
+    draw = ImageDraw.Draw(canvas)
+    cx = ancho // 2
+    r = 7   # medio lado del rombo
+    hueco = 18
+    draw.line([(cx - hueco - largo, y), (cx - hueco, y)], fill=DORADO, width=2)
+    draw.line([(cx + hueco, y), (cx + hueco + largo, y)], fill=DORADO, width=2)
+    draw.polygon([(cx, y - r), (cx + r, y), (cx, y + r), (cx - r, y)], outline=DORADO, width=2)
 
 
 def _altura_texto(texto: str, fuente) -> int:
-    """Altura real del texto."""
     bbox = fuente.getbbox(texto)
     return bbox[3] - bbox[1]
+
+
+def _titulo_partes(titulo: str | None, titulo_script: str | None,
+                    titulo_grande: str | None, dia_semana: str) -> tuple[str, str]:
+    """
+    Devuelve (linea_script, palabra_grande).
+    Si vienen explícitos de pautas.yaml se usan tal cual; si no, se derivan
+    del título: última palabra en grande, el resto en script.
+    """
+    if titulo_grande:
+        return titulo_script or "", titulo_grande.upper()
+
+    titulo = (titulo or dia_semana.capitalize()).replace("\n", " ").strip()
+    palabras = titulo.split()
+    if len(palabras) >= 2:
+        return " ".join(palabras[:-1]), palabras[-1].upper()
+    return f"{dia_semana.capitalize()} de", titulo.upper()
 
 
 # ── Story 1080×1920 ───────────────────────────────────────────────────────────
@@ -174,20 +238,14 @@ def montar_story(
     fecha: str,
     dia_semana: str,
     titulo: str | None = None,
+    titulo_script: str | None = None,
+    titulo_grande: str | None = None,
     subtitulo: str | None = None,
     logo_path: Path | str | None = None,
     output_path: Path | str | None = None,
 ) -> Path:
     """
-    Monta la story 1080×1920 con composición profesional.
-
-    Layout v4:
-      - Foto a pantalla completa, sin overlay total
-      - Gradiente suave solo en tercio inferior (foto visible a través)
-      - Logo circular pequeño en safe zone superior
-      - Título grande centrado (Anton) en zona inferior segura
-      - Tagline corta (1 línea, Montserrat) bajo el título
-      - Sin hashtags ni líneas decorativas
+    Monta la story 1080×1920 con el diseño editorial v6.
     """
     W, H = STORY_W, STORY_H
     logo_path = Path(logo_path) if logo_path else ASSETS_DIR / "logo.png"
@@ -196,62 +254,66 @@ def montar_story(
         output_path = OUTPUT_DIR / f"{fecha}_{dia_semana}_story.jpg"
     output_path = Path(output_path)
 
-    # 1. Foto de fondo a pantalla completa
+    # 1. Foto de fondo
     base = Image.open(image_path).convert("RGBA")
     base = _escalar_recortar(base, W, H)
 
-    # 2. Analizar la zona del texto: fuerza del gradiente según brillo del fondo
-    #    y color de acento extraído de la propia foto
-    grad_inicio = int(H * 0.62)
+    # 2. Gradiente adaptativo + acento de color de la foto
+    grad_inicio = int(H * 0.56)
     brillo, color_acento = _analizar_fondo(base, grad_inicio, H)
-    alpha_gradiente = int(150 + brillo * 70)   # fondo oscuro ~150, claro ~220
-    _gradiente_vertical(base, grad_inicio, H, 0, alpha_gradiente)
+    _gradiente_vertical(base, grad_inicio, H, 0, int(165 + brillo * 60))
+    _gradiente_vertical(base, 0, int(H * 0.14), 110, 0)
 
-    # 3. Gradiente mínimo superior (solo 12%) — para que el logo sea legible
-    _gradiente_vertical(base, 0, int(H * 0.12), 90, 0)
+    # 3. Marco fino dorado
+    _marco(base, inset=30)
 
     draw = ImageDraw.Draw(base)
 
-    # 4. Logo circular en safe zone superior (y=40 — dentro del área de UI pero el logo sí va ahí)
-    _logo_circular(base, logo_path, diametro=90, x=40, y=40)
+    # 4. Logo circular centrado arriba
+    d_logo = 116
+    _logo_circular(base, logo_path, diametro=d_logo, x=(W - d_logo) // 2, y=64)
 
-    # 5. Bloque de texto en safe zone inferior
-    # Safe zone inferior empieza en H - STORY_SAFE_BOTTOM = 1670
-    # Colocamos el bloque 40px sobre ese límite → texto arranca en ~1350 y acaba antes de 1670
-    fuente_titulo = _fuente(130, display=True)
-    fuente_tagline = _fuente(52)
+    # 5. Título en dos niveles
+    linea_script, palabra_grande = _titulo_partes(titulo, titulo_script, titulo_grande, dia_semana)
 
-    # Título en Title Case — más elegante que todo mayúsculas
-    titulo_limpio = (titulo or dia_semana.capitalize()).replace("\n", " ").strip()
-    lineas_titulo = textwrap.wrap(titulo_limpio, width=14)[:3]
+    y = int(H * 0.585)
 
-    # Calcular altura total del bloque para centrarlo verticalmente en la zona inferior
-    alto_titulo = sum(_altura_texto(l, fuente_titulo) + 8 for l in lineas_titulo)
+    # 5a. Línea script manuscrita en el color de acento
+    if linea_script:
+        fuente_script = _fuente(112, script=True)
+        ancho_script = _ancho_texto(draw, linea_script, fuente_script)
+        _texto_sombra(draw, linea_script, int((W - ancho_script) / 2), y,
+                      fuente_script, color=(*color_acento, 255))
+        y += 150
 
-    # Tagline: primera frase del caption, envuelta en máx 2 líneas (~32 chars/línea)
-    # 32 chars a 52px de Poppins Bold caben holgadamente en 1080px de ancho
+    # 5b. Palabra protagonista en serif, ajustada al ancho, con tracking
+    tracking = 6
+    fuente_grande = _fuente_ajustada(draw, palabra_grande, W - 150, 165, tracking)
+    _texto_espaciado(draw, palabra_grande, y, fuente_grande, W,
+                     tracking=tracking, color=BLANCO)
+    y += _altura_texto(palabra_grande, fuente_grande) + 46
+
+    # 6. Ornamento divisor
+    _ornamento(base, y, W)
+    y += 36
+
+    # 7. Tagline (primera frase del caption) en máx 2 líneas
+    draw = ImageDraw.Draw(base)   # re-crear tras pegar el ornamento
     primera_frase = caption.split(".")[0].strip()
-    lineas_tagline = textwrap.wrap(primera_frase, width=32)[:2]
+    fuente_tagline = _fuente(44)
+    for linea in textwrap.wrap(primera_frase, width=38)[:2]:
+        ancho_l = _ancho_texto(draw, linea, fuente_tagline)
+        _texto_sombra(draw, linea, int((W - ancho_l) / 2), y,
+                      fuente_tagline, color=BLANCO_SUAVE)
+        y += _altura_texto(linea, fuente_tagline) + 14
 
-    y_inicio = int(H * 0.73)  # empieza al 73% — zona inferior con gradiente
-    y = y_inicio
+    # 8. Footer de marca en versalitas espaciadas — siempre bajo la tagline
+    fuente_footer = _fuente(27)
+    y_footer = max(H - 285, y + 40)
+    _texto_espaciado(draw, f"{HANDLE}   ·   {BARRIO}", y_footer, fuente_footer, W,
+                     tracking=4, color=FOOTER_COLOR)
 
-    # 6. Título — interlineado generoso para que no se peguen las líneas
-    for linea in lineas_titulo:
-        x = _centrar_x(linea, fuente_titulo, W)
-        _texto_sombra(draw, linea, x, y, fuente_titulo)
-        y += _altura_texto(linea, fuente_titulo) + 26
-
-    y += 18  # separación entre título y tagline
-
-    # 7. Tagline en máx 2 líneas, en el color de acento de la foto
-    color_tagline = (*color_acento, 240)
-    for linea in lineas_tagline:
-        x = _centrar_x(linea, fuente_tagline, W)
-        _texto_sombra(draw, linea, x, y, fuente_tagline, color=color_tagline)
-        y += _altura_texto(linea, fuente_tagline) + 10
-
-    # 8. Guardar
+    # 9. Guardar
     base.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
     logger.info(f"Story guardada: {output_path} ({output_path.stat().st_size // 1024} KB)")
     return output_path
@@ -266,18 +328,13 @@ def montar_feed(
     fecha: str,
     dia_semana: str,
     titulo: str | None = None,
+    titulo_script: str | None = None,
+    titulo_grande: str | None = None,
     logo_path: Path | str | None = None,
     output_path: Path | str | None = None,
 ) -> Path:
     """
-    Monta imagen cuadrada 1080×1080 para feed.
-
-    Layout v4:
-      - Foto de fondo a cuadrado completo
-      - Gradiente suave inferior
-      - Logo circular pequeño arriba-izquierda
-      - Título + tagline en zona inferior
-      - Sin hashtags en la imagen
+    Monta el cuadrado 1080×1080 con el mismo lenguaje visual que la story.
     """
     W, H = FEED_W, FEED_H
     logo_path = Path(logo_path) if logo_path else ASSETS_DIR / "logo.png"
@@ -289,39 +346,51 @@ def montar_feed(
     base = Image.open(image_path).convert("RGBA")
     base = _escalar_recortar(base, W, H)
 
-    # Gradiente adaptativo según brillo + acento de color de la foto
-    grad_inicio = int(H * 0.60)
+    grad_inicio = int(H * 0.52)
     brillo, color_acento = _analizar_fondo(base, grad_inicio, H)
-    _gradiente_vertical(base, grad_inicio, H, 0, int(145 + brillo * 70))
-    _gradiente_vertical(base, 0, int(H * 0.08), 80, 0)
+    _gradiente_vertical(base, grad_inicio, H, 0, int(160 + brillo * 60))
+    _gradiente_vertical(base, 0, int(H * 0.12), 95, 0)
+
+    _marco(base, inset=24)
 
     draw = ImageDraw.Draw(base)
 
-    # Logo circular
-    _logo_circular(base, logo_path, diametro=72, x=28, y=22)
+    d_logo = 88
+    _logo_circular(base, logo_path, diametro=d_logo, x=(W - d_logo) // 2, y=44)
 
-    # Título
-    fuente_titulo = _fuente(108, display=True)
-    fuente_tagline = _fuente(40)
+    linea_script, palabra_grande = _titulo_partes(titulo, titulo_script, titulo_grande, dia_semana)
 
-    titulo_limpio = (titulo or dia_semana.capitalize()).replace("\n", " ").strip()
-    lineas_titulo = textwrap.wrap(titulo_limpio, width=16)[:2]
+    y = int(H * 0.565)
 
-    y = int(H * 0.62)
-    for linea in lineas_titulo:
-        x = _centrar_x(linea, fuente_titulo, W)
-        _texto_sombra(draw, linea, x, y, fuente_titulo)
-        y += _altura_texto(linea, fuente_titulo) + 22
+    if linea_script:
+        fuente_script = _fuente(80, script=True)
+        ancho_script = _ancho_texto(draw, linea_script, fuente_script)
+        _texto_sombra(draw, linea_script, int((W - ancho_script) / 2), y,
+                      fuente_script, color=(*color_acento, 255))
+        y += 104
 
-    y += 14
+    tracking = 4
+    fuente_grande = _fuente_ajustada(draw, palabra_grande, W - 130, 118, tracking)
+    _texto_espaciado(draw, palabra_grande, y, fuente_grande, W,
+                     tracking=tracking, color=BLANCO)
+    y += _altura_texto(palabra_grande, fuente_grande) + 34
 
-    # Tagline en máx 2 líneas, en el color de acento de la foto
+    _ornamento(base, y, W, largo=100)
+    y += 26
+
+    draw = ImageDraw.Draw(base)
     primera_frase = caption.split(".")[0].strip()
-    color_tagline = (*color_acento, 240)
-    for linea in textwrap.wrap(primera_frase, width=32)[:2]:
-        x = _centrar_x(linea, fuente_tagline, W)
-        _texto_sombra(draw, linea, x, y, fuente_tagline, color=color_tagline)
-        y += _altura_texto(linea, fuente_tagline) + 8
+    fuente_tagline = _fuente(36)
+    for linea in textwrap.wrap(primera_frase, width=42)[:2]:
+        ancho_l = _ancho_texto(draw, linea, fuente_tagline)
+        _texto_sombra(draw, linea, int((W - ancho_l) / 2), y,
+                      fuente_tagline, color=BLANCO_SUAVE)
+        y += _altura_texto(linea, fuente_tagline) + 12
+
+    fuente_footer = _fuente(23)
+    y_footer = max(H - 70, y + 28)
+    _texto_espaciado(draw, f"{HANDLE}   ·   {BARRIO}", y_footer, fuente_footer, W,
+                     tracking=3, color=FOOTER_COLOR)
 
     base.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
     logger.info(f"Feed guardado: {output_path} ({output_path.stat().st_size // 1024} KB)")
@@ -335,6 +404,8 @@ def montar_ambos(
     fecha: str,
     dia_semana: str,
     titulo: str | None = None,
+    titulo_script: str | None = None,
+    titulo_grande: str | None = None,
     logo_path: Path | str | None = None,
 ) -> dict[str, Path]:
     """
@@ -342,9 +413,11 @@ def montar_ambos(
     Devuelve {'story': Path, 'feed': Path}.
     """
     story = montar_story(image_path, caption, hashtags, fecha, dia_semana,
-                         titulo=titulo, logo_path=logo_path)
+                         titulo=titulo, titulo_script=titulo_script,
+                         titulo_grande=titulo_grande, logo_path=logo_path)
     feed  = montar_feed(image_path, caption, hashtags, fecha, dia_semana,
-                        titulo=titulo, logo_path=logo_path)
+                        titulo=titulo, titulo_script=titulo_script,
+                        titulo_grande=titulo_grande, logo_path=logo_path)
     return {"story": story, "feed": feed}
 
 
@@ -358,20 +431,21 @@ if __name__ == "__main__":
     )
     load_dotenv(BASE_DIR / ".env")
 
-    imagen_base = OUTPUT_DIR / "2026-06-11_miercoles_base.png"
+    imagen_base = OUTPUT_DIR / "2026-06-10_miercoles_base.png"
     if not imagen_base.exists():
         logger.info("Creando imagen base de prueba...")
-        img = Image.new("RGB", (1024, 1024), (20, 10, 30))
+        img = Image.new("RGB", (576, 1024), (20, 10, 30))
         imagen_base.parent.mkdir(parents=True, exist_ok=True)
         img.save(imagen_base)
 
     rutas = montar_ambos(
         image_path=imagen_base,
-        caption="El miércoles es de mojito. Sin discusión. Ven a vernos.",
+        caption="Con M de Meraki. Con M de Mojito.",
         hashtags=["#MiercolesDelMojito", "#MerakiBilbao", "#Santutxu"],
-        fecha="2026-06-11",
+        fecha="2026-06-10",
         dia_semana="miercoles",
-        titulo="Miércoles de Mojitos",
+        titulo_script="Miércoles de",
+        titulo_grande="Mojitos",
     )
 
     for formato, ruta in rutas.items():

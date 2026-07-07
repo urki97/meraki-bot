@@ -197,6 +197,8 @@ def generar_plan_semanal(
             "enfoque": config_dia["enfoque"],
             "idea_creativa": idea,
             "titulo": config_dia["tema"].title(),
+            "titulo_script": config_dia.get("titulo_script"),
+            "titulo_grande": config_dia.get("titulo_grande"),
             "hashtag_variable": config_dia["hashtag_variable"],
             "prompt_imagen_extra": config_dia.get("prompt_imagen_extra", ""),
             "temporada": temporada_nombre,

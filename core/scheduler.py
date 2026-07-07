@@ -75,6 +75,8 @@ def ejecutar_pipeline_dia(dia: dict, modelo_ollama: str, modelo_sdxl: str) -> di
             fecha=fecha,
             dia_semana=nombre_dia,
             titulo=dia.get("titulo"),
+            titulo_script=dia.get("titulo_script"),
+            titulo_grande=dia.get("titulo_grande"),
         )
         story_path = rutas["story"]
         dia["feed_path"] = str(rutas["feed"])
