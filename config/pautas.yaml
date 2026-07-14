@@ -1,0 +1,138 @@
+# Pautas de contenido para Meraki Bar & Cocktails
+# Estas pautas guían al planner y al copy agent
+
+bar:
+  nombre: "Meraki Bar & Cocktails"
+  slogan: "Hacer algo con amor y creatividad poniendo el alma en ello"
+  instagram: "@merakibilbao"
+  direccion: "Calle Santo Rosario 1, Santutxu, Bilbao"
+  especialidad: "cócteles de autor y pintxos"
+  ambiente: "moderno, cercano, elegante"
+  seguidores: 458 # cuenta pequeña — tono cercano, no corporativo
+  terraza: false
+
+tono:
+  idioma: español
+  estilo: cercano y bilbaíno
+  evitar:
+    - lenguaje corporativo
+    - frases hechas y clichés
+    - exceso de emojis
+    - inventar eventos o precios no confirmados
+    - anglicismos innecesarios
+    - mencionar marcas de alcohol específicas (Havana Club, etc.)
+    - mencionar precios concretos (pueden cambiar sin avisar)
+    - mencionar "Meraki" o "Santutxu" en el cuerpo del caption (el logo ya identifica el bar)
+    - más de 2 frases en el caption — mensaje corto y directo
+  usar:
+    - vocabulario cotidiano del País Vasco
+    - referencias locales reales (Santutxu, Bilbao)
+    - segunda persona del singular (tú)
+    - frases cortas y directas
+
+hashtags:
+  fijos:
+    - "#MerakiBilbao"
+    - "#Santutxu"
+  maximo_por_post: 3 # fijos + 1 variable
+  nota: "naturales, no spam — integrados o al final del caption"
+
+imagen:
+  # Prompt base inspirado en el ambiente real del bar:
+  # techo de madera con Edison, papel tropical de hojas, barra de metal,
+  # neón MERAKI rojo, plantas, iluminación cálida
+  estilo_prompt_base: >
+    cozy spanish cocktail bar interior, wooden ceiling with warm Edison bulbs,
+    tropical botanical leaf wallpaper grey and white, metal steel bar counter,
+    red neon bar sign glow, green plants ivy hanging, bottles on shelves background,
+    warm amber lighting, no text, no people, cinematic, photorealistic,
+    high quality, editorial food photography, shallow depth of field
+  overlay_alpha: 0.45
+  texto_color: "white"
+  resolucion: [1080, 1920] # story Instagram
+  # Directorio de fotos reales del bar (si existen, se usan en lugar de SDXL)
+  fotos_reales_dir: "assets/fotos_reales"
+
+# ── Horario de apertura ───────────────────────────────────────────────────────
+# El bot respeta este horario y no publica en días de cierre
+apertura:
+  dias_abierto: [miercoles, jueves, viernes, sabado, domingo]
+  dias_cerrado: [lunes, martes]
+  nota: "lunes y martes cerrado — no publicar"
+
+# ── Publicación semanal rotatoria de eventos fijos ────────────────────────────
+# En lugar de publicar todos los días de apertura, se publica UN evento fijo
+# por semana rotando entre miércoles, jueves y viernes.
+# Sábado y domingo se publican siempre (son los días de mayor tráfico).
+publicacion_rotatoria:
+  activa: true
+  eventos_rotativos: [miercoles, jueves, viernes]  # rota en este orden semana a semana
+  siempre_publicar: [sabado, domingo]              # estos se publican cada semana
+  # La semana de rotación se determina por número de semana del año (% 3)
+  # Semana %3 == 0 → miércoles, %3 == 1 → jueves, %3 == 2 → viernes
+
+# ── Temáticas por día de la semana ───────────────────────────────────────────
+dias:
+  lunes:
+    publicar: false
+    motivo: "cerrado los lunes"
+
+  martes:
+    publicar: false
+    motivo: "cerrado los martes"
+
+  miercoles:
+    publicar: true  # rotatorio — no siempre
+    titulo_script: "Miércoles de"
+    titulo_grande: "Mojitos"
+    tema: "Miércoles de mojitos"
+    enfoque: "promoción fija e inamovible — mojitos a precio especial (no mencionar precio ni marca)"
+    hashtag_variable: "#MiercolesDelMojito"
+    prompt_imagen_extra: >
+      a mojito on the bar counter, tall glass with crushed ice, fresh mint,
+      lime wedge, condensation on the glass, blurred bar background
+    promocion_fija: true
+
+  jueves:
+    publicar: true  # rotatorio — no siempre
+    titulo_script: "Jueves de"
+    titulo_grande: "Pintxopote"
+    tema: "pintxopote"
+    enfoque: "pintxo + zurito a precio especial — tradición vasca"
+    hashtag_variable: "#Pintxopote"
+    prompt_imagen_extra: >
+      a tray of assorted basque pintxos on the bar, mini sandwiches on sticks,
+      small glass of beer next to them, blurred bar background
+
+  viernes:
+    publicar: true  # rotatorio — no siempre
+    titulo_script: "Viernes de"
+    titulo_grande: "Tortillas"
+    tema: "tortillas especiales"
+    enfoque: "tortillas especiales del día — plato estrella del viernes"
+    hashtag_variable: "#TortillaDelDia"
+    prompt_imagen_extra: >
+      a slice of golden spanish tortilla on a small plate on the bar,
+      fork beside it, crumbs, blurred bottles in the background
+
+  sabado:
+    publicar: true  # siempre
+    titulo_script: "Noche de"
+    titulo_grande: "Cócteles"
+    tema: "noche de cócteles"
+    enfoque: "ambiente nocturno, cócteles de autor, noche en Bilbao"
+    hashtag_variable: "#CoctelesDeAutor"
+    prompt_imagen_extra: >
+      a craft cocktail with garnish on the bar at night, red neon reflections
+      on the counter, dark moody atmosphere, blurred background
+
+  domingo:
+    publicar: true  # siempre
+    titulo_script: "Domingo de"
+    titulo_grande: "Vermú"
+    tema: "vermú dominical"
+    enfoque: "vermú, cierre de semana, relax y buena compañía"
+    hashtag_variable: "#VermuDominical"
+    prompt_imagen_extra: >
+      a glass of vermouth with an olive and orange slice on the bar,
+      warm afternoon light through the window, blurred bottles behind

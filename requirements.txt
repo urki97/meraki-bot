@@ -28,4 +28,7 @@ pydantic-settings
 python-dotenv
 PyYAML
 requests
+tweepy
 rich
+pytest
+cloudinary
